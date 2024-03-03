@@ -10,51 +10,18 @@ to provide a command-line interface for WhatsApp.
 - Send and receive messages
 - Store messages and files in a database
 - Store messages and files in Google Drive
+- Process images by OCR
 
-## Requirements
+## Production Requirements
 
-- Go 1.22
-- WhatsApp account
-- SQLite3
-- QR Terminal
-- Google Cloud credentials (if using Google Drive)
-- Tesseract OCR (if using OCR)
-
-## Building
-
-This project uses a Makefile for building. You can build for Linux, macOS, and Windows using the following commands:
-
-```bash
-make build-linux
-make build-mac
-make build-windows
-```
-
-Or build for all platforms at once:
-
-```bash
-make build-all
-```
+- Docker
 
 ## Usage
-
-After building, you can run the binary for your platform.
-The application will provide a command-line interface for interacting with WhatsApp.
-
-```bash
-Usage of whatsgo:
-  -config string
-    	Path to config file (default "config.yaml")
-  -debug
-    	Enable debug logs?
-  -request-full-sync
-    	Request full (1 year) history sync when logging in?
-```
 
 ### Run in docker
 
 ```bash
-cp config/config.yaml.example config/config.yaml
+cp config/demo-config.yaml config/config.yaml
 # update config/config.yaml with your settings
 mkdir -p data/db
 mkdir -p data/files
@@ -85,6 +52,9 @@ google_cloud:
 ## Trackers
 
 The application uses a tracker to track messages and files from selected chats.
+To filter chats that you want to track please use `chats` section at `config.yaml`.
+By default, it stores files all images attached to messages.
+To configure local path for it use `file_storage_path` section at `config.yaml`.
 
 ### DB Tracker
 
@@ -99,9 +69,41 @@ It uses the same db that `whatmeow` uses, so it will create a new tables:
 
 The Google Drive tracker stores messages and files in Google Drive.
 It uses the Google Drive API to create a folder for each chat and store the messages and files in it.
+To enable it:
+
+- set `true` at `google_cloud.enabled` in `config.yaml`
+- create `credentials.json` and set path to it at `google_cloud.credentials_file`.
+  Check instruction [here](https://developers.google.com/sheets/api/quickstart/go)
+- create folder on Google Drive and set its ID at `google_cloud.folder_id`
 
 ### OCR
 
 The OCR tracker uses Tesseract OCR to extract text from images.
-It uses the `tesseract` command-line tool to check.
-Details: 
+To enable it set `true` at `ocr.enabled` in `config.yaml`
+
+## Development
+
+### Requirements
+
+- Go 1.22
+- WhatsApp account
+- SQLite3
+- QR Terminal
+- Google Cloud credentials (if using Google Drive)
+- Tesseract OCR (if using OCR)
+
+### Building
+
+This project uses a Makefile for building. You can build for Linux, macOS, and Windows using the following commands:
+
+```bash
+make build-linux
+make build-mac
+make build-windows
+```
+
+Or build for all platforms at once:
+
+```bash
+make build-all
+```
