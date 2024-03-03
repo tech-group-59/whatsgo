@@ -45,15 +45,19 @@ After building, you can run the binary for your platform.
 The application will provide a command-line interface for interacting with WhatsApp.
 
 ```bash
-Usage of ./bin/whatsgo-arm64-mac:
-  -db-address string
-    	Database address (default "file:whatsgo.db?_foreign_keys=on")
-  -db-dialect string
-    	Database dialect (sqlite3 or postgres) (default "sqlite3")
+Usage of whatsgo:
+  -config string
+    	Path to config file (default "config.yaml")
   -debug
     	Enable debug logs?
-  -files-folder string
-    	Folder to save files to (default "files")
   -request-full-sync
     	Request full (1 year) history sync when logging in?
 ```
+
+## Configuration
+
+The application uses a YAML configuration file to store the user's credentials and settings.
+The default configuration file is `config.yaml` and it should be placed in the same directory as the binary.
+
+```yaml
+# config.yaml

@@ -14,11 +14,20 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# IDE files
+# IDE file-storage
 .idea/
 
 # Compiled Go code
 bin/*
 
-# macOS files
+# macOS file-storage
 .DS_Store
+
+# config file
+config.yaml
+
+# google cloud credentials
+credentials.json
+
+# sqlite database
+*.db
