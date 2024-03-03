@@ -30,6 +30,7 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
+	github.com/otiai10/gosseract/v2 v2.4.1 // indirect
 	github.com/rs/zerolog v1.32.0 // indirect
 	go.mau.fi/libsignal v0.1.0 // indirect
 	go.mau.fi/util v0.3.1-0.20240208085450-32294da153ab // indirect

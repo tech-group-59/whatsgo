@@ -1,11 +1,13 @@
 chats:
   - <chat-to-track>@s.whatsapp.net
 file_storage_path: "folder-to-store-files"
-db_connection_string: "file:/whatsgo.db?_foreign_keys=on"
-db_dialect: "sqlite3"
-
+ocr:
+  enabled: false
+database:
+  connection_string: "file:/whatsgo.db?_foreign_keys=on"
+  dialect: "sqlite3"
 google_cloud:
-  enabled: true
+  enabled: false
   credentials_file: "credentials.json" # path to the google cloud credentials file, details on how to get it here: https://developers.google.com/sheets/api/quickstart/go
+  token_file: "config/token.json"
   folder_id: "<google-folder-id>"
-

@@ -1,0 +1,77 @@
+package main
+
+import (
+	"gopkg.in/yaml.v3"
+	"os"
+)
+
+type DBConfig struct {
+	ConnectionString string `yaml:"connection_string"`
+	Dialect          string `yaml:"dialect"`
+}
+
+type GoogleCloudConfig struct {
+	Enabled         bool   `yaml:"enabled"`
+	CredentialsFile string `yaml:"credentials_file"`
+	TokenFile       string `yaml:"token_file"`
+	FolderID        string `yaml:"folder_id"`
+}
+
+type OCRConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+type Config struct {
+	Chats           []string          `yaml:"chats"`
+	FileStoragePath string            `yaml:"file_storage_path"`
+	Database        DBConfig          `yaml:"database"`
+	GoogleCloud     GoogleCloudConfig `yaml:"google_cloud"`
+	OCR             OCRConfig         `yaml:"ocr"`
+}
+
+func LoadConfig(file string) (*Config, error) {
+	var config Config
+	configFile, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	err = yaml.Unmarshal(configFile, &config)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Trackable chats: %v", config.Chats)
+	return &config, nil
+}
+
+func (c *Config) IsChatTrackable(chatID string) bool {
+	if c.Chats == nil {
+		return true
+	}
+
+	log.Infof("Checking if chat '%s' is trackable", chatID)
+	for _, id := range c.Chats {
+		if id == chatID {
+			return true
+		}
+	}
+	return false
+}
+
+func GetDefaultConfig() *Config {
+	return &Config{
+		Chats:           nil,
+		FileStoragePath: "file-storage",
+		Database: DBConfig{
+			Dialect:          "sqlite3",
+			ConnectionString: "file:whatsgo.db?_foreign_keys=on",
+		},
+		GoogleCloud: GoogleCloudConfig{
+			Enabled:         false,
+			CredentialsFile: "credentials.json",
+			TokenFile:       "token.json",
+		},
+		OCR: OCRConfig{
+			Enabled: false,
+		},
+	}
+}

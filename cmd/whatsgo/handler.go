@@ -77,11 +77,7 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 
 			var text string
 			if trackable && evt.Info.Type == "text" {
-				// cast to ExtendedTextMessage
 				text = evt.Message.GetConversation()
-				// get the text
-				// print the text
-				log.Infof("Text: %s", text)
 			}
 
 			if evt.Message.GetPollUpdateMessage() != nil {
@@ -141,6 +137,7 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 			if trackable && (text != "" || len(files) > 0) {
 				log.Infof("Tracking message from %s in chat %s", sender, chat)
 				ProcessMessage(trackers, evt.Info.ID, sender, chat, text, evt.Info.Timestamp.String(), files)
+				log.Infof("Message text: %s", text)
 			} else {
 				log.Infof("Ignoring message from %s in chat %s", sender, chat)
 			}

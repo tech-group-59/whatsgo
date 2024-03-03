@@ -41,7 +41,7 @@ func (tracker *DBTracker) Init(config *Config) error {
 }
 
 // StoreMessage stores a message in the database
-func (tracker *DBTracker) StoreMessage(messageID string, sender string, chat string, content string, timestamp string) error {
+func (tracker *DBTracker) storeMessage(messageID string, sender string, chat string, content string, timestamp string) error {
 	_, err := tracker.db.Exec(`INSERT INTO messages (id, sender, chat, content, timestamp) VALUES (?, ?, ?, ?, ?)`,
 		messageID, sender, chat, content, timestamp)
 	if err != nil {
@@ -51,14 +51,15 @@ func (tracker *DBTracker) StoreMessage(messageID string, sender string, chat str
 	return nil
 }
 
-func (tracker *DBTracker) StoreMessageWithFiles(messageID string, sender string, chat string, content string, timestamp string, files []string) error {
-	err := tracker.StoreMessage(messageID, sender, chat, content, timestamp)
+func (tracker *DBTracker) TrackMessage(message *TrackableMessage) error {
+
+	err := tracker.storeMessage(message.MessageID, message.Sender, message.Chat, message.Content, message.Timestamp)
 	if err != nil {
 		return err
 	}
 
-	for _, file := range files {
-		err = tracker.storeFile(messageID, file)
+	for _, file := range message.Files {
+		err = tracker.storeFile(message.MessageID, file)
 		if err != nil {
 			return err
 		}

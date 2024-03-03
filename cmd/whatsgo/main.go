@@ -9,19 +9,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
-	"strconv"
-	"strings"
-	"sync/atomic"
-	"syscall"
-	"time"
-
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mdp/qrterminal/v3"
-	"google.golang.org/protobuf/proto"
-
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/appstate"
 	waBinary "go.mau.fi/whatsmeow/binary"
@@ -31,6 +20,15 @@ import (
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
+	"google.golang.org/protobuf/proto"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"syscall"
+	"time"
 )
 
 var cli *whatsmeow.Client
@@ -53,19 +51,12 @@ func main() {
 	if err != nil {
 		log.Infof("Failed to load configuration: %v", err)
 		log.Infof("Using default configuration")
-		config = &Config{
-			FileStoragePath:    "file-storage",
-			DBDialect:          "sqlite3",
-			DBConnectionString: "file:whatsgo.db?_foreign_keys=on",
-			GoogleCloud: GoogleCloudConfig{
-				Enabled: false,
-			},
-		}
+		config = GetDefaultConfig()
 	}
 
 	var fileFolder = &config.FileStoragePath
-	var dbDialect = &config.DBDialect
-	var dbAddress = &config.DBConnectionString
+	var dbDialect = &config.Database.Dialect
+	var dbAddress = &config.Database.ConnectionString
 
 	waBinary.IndentXML = true
 

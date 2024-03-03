@@ -17,17 +17,17 @@ import (
 // https://developers.google.com/sheets/api/quickstart/go
 
 // Retrieve a token, saves the token, then returns the generated client.
-func getClient(config *oauth2.Config) *http.Client {
+func getClient(config *GoogleCloudConfig, gConfig *oauth2.Config) *http.Client {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
 	// time.
-	tokFile := "token.json"
+	tokFile := config.TokenFile
 	tok, err := tokenFromFile(tokFile)
 	if err != nil {
-		tok = getTokenFromWeb(config)
+		tok = getTokenFromWeb(gConfig)
 		saveToken(tokFile, tok)
 	}
-	return config.Client(context.Background(), tok)
+	return gConfig.Client(context.Background(), tok)
 }
 
 // Request a token from the web, then returns the retrieved token.
@@ -96,7 +96,7 @@ func (tracker *CloudTracker) Init(config *Config) error {
 		return err
 	}
 
-	client := getClient(gConfig)
+	client := getClient(&config.GoogleCloud, gConfig)
 
 	// Create a new drive service
 	driveService, err := drive.NewService(ctx, option.WithHTTPClient(client))
@@ -118,10 +118,10 @@ func (tracker *CloudTracker) Init(config *Config) error {
 	return nil
 }
 
-func (tracker *CloudTracker) StoreMessageWithFiles(messageID string, sender string, chat string, content string, timestamp string, files []string) error {
+func (tracker *CloudTracker) TrackMessage(message *TrackableMessage) error {
 	// Store all files into a Google Drive folder
-	fileLinks := make([]string, len(files))
-	for i, filePath := range files {
+	fileLinks := make([]string, len(message.Files))
+	for i, filePath := range message.Files {
 		link, err := tracker.storeFile(filePath)
 		if err != nil {
 			return err
@@ -130,35 +130,21 @@ func (tracker *CloudTracker) StoreMessageWithFiles(messageID string, sender stri
 	}
 
 	// Get or create the spreadsheet for the chat
-	spreadsheet, err := tracker.getOrCreateSpreadsheet(chat)
+	spreadsheet, err := tracker.getOrCreateSpreadsheet(message.Chat)
 	if err != nil {
 		return err
 	}
 
 	// Insert the data about the message
-	fileLinksInterface := make([]interface{}, len(fileLinks))
+	fileLinksInterface := make([]interface{}, len(fileLinks)*2)
 	for i, v := range fileLinks {
-		fileLinksInterface[i] = v
+		fileLinksInterface[i] = fmt.Sprintf("=IMAGE(\"%s\")", v)
+		fileLinksInterface[i+1] = v
 	}
-	values := append([]interface{}{timestamp, sender, content}, fileLinksInterface...)
+	values := append([]interface{}{
+		message.MessageID, message.Timestamp, message.Sender, message.Content, message.ParsedContent,
+	}, fileLinksInterface...)
 	err = tracker.insertRow(spreadsheet, values)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// StoreMessage stores a message in Google Cloud
-func (tracker *CloudTracker) StoreMessage(messageID string, sender string, chat string, content string, timestamp string) error {
-	// Get or create the spreadsheet for the chat
-	spreadsheet, err := tracker.getOrCreateSpreadsheet(chat)
-	if err != nil {
-		return err
-	}
-
-	// Insert the data about the message
-	err = tracker.insertRow(spreadsheet, []interface{}{timestamp, sender, content})
 	if err != nil {
 		return err
 	}
@@ -189,8 +175,21 @@ func (tracker *CloudTracker) storeFile(filePath string) (string, error) {
 	}
 
 	// Return the link to the file
-	return "https://drive.google.com/open?id=" + file.Id, nil
+	//return "https://drive.google.com/open?id=" + file.Id, nil
+
+	// Share the file
+	_, err = tracker.driveService.Permissions.Create(file.Id, &drive.Permission{
+		Type: "anyone",
+		Role: "reader",
+	}).Do()
+	if err != nil {
+		log.Errorf("Unable to share file: %v", err)
+		return "", err
+
+	}
+	return "https://drive.google.com/uc?id=" + file.Id, nil
 }
+
 func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string) (*sheets.Spreadsheet, error) {
 	// Check if a spreadsheet exists for the chat inside the specified folder
 	searchResult, err := tracker.driveService.Files.List().Q(fmt.Sprintf("name='%s' and '%s' in parents", chat, tracker.folderID)).Do()
@@ -198,6 +197,7 @@ func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string) (*sheets.Spread
 		log.Errorf("Unable to search for file: %v", err)
 		return nil, err
 	}
+	log.Infof("Search result: %v", searchResult)
 
 	if len(searchResult.Files) != 0 {
 		// If the spreadsheet exists, get it
@@ -206,8 +206,10 @@ func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string) (*sheets.Spread
 			log.Errorf("Unable to get spreadsheet: %v", err)
 			return nil, err
 		}
+		log.Infof("Found existing spreadsheet for chat %s", chat)
 		return spreadsheet, nil
 	}
+	log.Infof("Creating new spreadsheet for chat %s", chat)
 	// If the spreadsheet does not exist, create a new one
 	spreadsheet, err := tracker.sheetsService.Spreadsheets.Create(&sheets.Spreadsheet{
 		Properties: &sheets.SpreadsheetProperties{
@@ -238,6 +240,7 @@ func (tracker *CloudTracker) insertRow(spreadsheet *sheets.Spreadsheet, values [
 		log.Errorf("Unable to insert data: %v", err)
 		return err
 	}
+	log.Infof("Inserted row into spreadsheet %s", spreadsheet.SpreadsheetId)
 
 	return nil
 }

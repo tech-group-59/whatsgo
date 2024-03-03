@@ -1,0 +1,52 @@
+# Ignore Go build files
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Ignore test and coverage reports
+_test
+*.test
+*.test.exe
+*.cover
+
+# Ignore miscellaneous typical Go files
+*.out
+*.o
+*.a
+*.swo
+*.swp
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+# Ignore IDE and editor files
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignore Git files
+.git/
+.gitignore
+
+# Ignore GoLand files
+.idea/
+
+# Ignore log files
+*.log
+
+# Ignore temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Ignore data files
+data/*
+
+# Google Cloud Platform token
+token.json

@@ -18,7 +18,7 @@
 .idea/
 
 # Compiled Go code
-bin/*
+build/*
 
 # macOS file-storage
 .DS_Store
@@ -29,5 +29,5 @@ config.yaml
 # google cloud credentials
 credentials.json
 
-# sqlite database
-*.db
+# files and database
+data/*
