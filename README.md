@@ -51,6 +51,16 @@ Usage of whatsgo:
     	Request full (1 year) history sync when logging in?
 ```
 
+### Run in docker
+
+```bash
+cp config/config.yaml.example config/config.yaml
+# update config/config.yaml with your settings
+mkdir -p data/db
+mkdir -p data/files
+docker compose run app
+```
+
 ## Configuration
 
 The application uses a YAML configuration file to store the user's credentials and settings.
@@ -84,7 +94,6 @@ It uses the same db that `whatmeow` uses, so it will create a new tables:
 
 - `messages`
 - `files`
-
 
 ### Google Drive Tracker
 
