@@ -570,7 +570,8 @@ func handleCmd(cmd string, args []string) {
 			log.Errorf("Failed to get group list: %v", err)
 		} else {
 			for _, group := range groups {
-				log.Infof("%+v", group)
+				log.Infof("%+v", group.JID)
+				log.Infof(group.GroupName.Name)
 			}
 		}
 	case "getinvitelink":
