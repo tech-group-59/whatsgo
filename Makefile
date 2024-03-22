@@ -11,3 +11,12 @@ run:
 
 run-docker:
 	docker build -t whatsgo . && docker run whatsgo
+
+dcb:
+	docker-compose build
+
+dcr:
+	docker-compose run --rm app
+
+dcu:
+	docker-compose up
