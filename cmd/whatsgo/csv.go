@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type CSVTracker struct {
@@ -34,8 +35,8 @@ func (tracker *CSVTracker) TrackMessage(message *TrackableMessage) error {
 		message.MessageID,
 		message.Sender,
 		message.Chat,
-		message.Content,
-		message.ParsedContent,
+		strings.ReplaceAll(message.Content, "\n", " "),
+		strings.ReplaceAll(message.ParsedContent, "\n", " "),
 		message.Timestamp,
 	}
 
