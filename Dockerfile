@@ -27,11 +27,21 @@ RUN apt-get install -y -qq \
 # Setup project
 WORKDIR /app
 
+# Create a user and switch to it
+RUN adduser --disabled-password --gecos '' appuser
+USER appuser
+
 COPY go.mod go.sum ./
 
 RUN go mod download
 
 COPY . .
+
+# Change ownership of the build directory to appuser
+USER root
+RUN chown -R appuser:appuser ./build
+USER appuser
+
 # Build the application
 RUN go build -o build/whatsgo ./cmd/whatsgo
 
