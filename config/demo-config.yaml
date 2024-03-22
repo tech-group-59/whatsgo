@@ -5,7 +5,7 @@ file_storage_path: "folder-to-store-files"
 ocr:
   enabled: false
 database:
-  connection_string: "file:/whatsgo.db?_foreign_keys=on"
+  connection_string: "file:data/db/whatsgo.db?_foreign_keys=on"
   dialect: "sqlite3"
 google_cloud:
   enabled: false
