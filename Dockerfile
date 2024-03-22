@@ -46,4 +46,4 @@ USER appuser
 # Build the application
 RUN go build -o build/whatsgo ./cmd/whatsgo
 
-CMD ["./build/whatsgo", "--config=config/config.yaml"]
+CMD ["./build/whatsgo", "--config=config/config.yaml", "-detached"]

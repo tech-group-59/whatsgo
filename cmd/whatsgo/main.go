@@ -37,6 +37,7 @@ var log waLog.Logger
 var logLevel = "INFO"
 var debugLogs = flag.Bool("debug", false, "Enable debug logs?")
 var configPath = flag.String("config", "config.yaml", "Path to config file")
+var detached = flag.Bool("detached", false, "Run in detached mode?")
 var requestFullSync = flag.Bool("request-full-sync", false, "Request full (1 year) history sync when logging in?")
 var pairRejectChan = make(chan bool, 1)
 
@@ -153,7 +154,7 @@ func main() {
 			cli.Disconnect()
 			return
 		case cmd := <-input:
-			if len(cmd) == 0 {
+			if len(cmd) == 0 && detached != nil && !*detached {
 				log.Infof("Stdin closed, exiting")
 				cli.Disconnect()
 				return
