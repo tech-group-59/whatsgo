@@ -154,7 +154,10 @@ func main() {
 			cli.Disconnect()
 			return
 		case cmd := <-input:
-			if len(cmd) == 0 && detached != nil && !*detached {
+			if len(cmd) == 0 {
+				if detached != nil && *detached {
+					continue
+				}
 				log.Infof("Stdin closed, exiting")
 				cli.Disconnect()
 				return
