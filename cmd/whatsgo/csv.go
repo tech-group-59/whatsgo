@@ -21,7 +21,7 @@ func (tracker *CSVTracker) TrackMessage(message *TrackableMessage) error {
 	csvWriter, exists := tracker.csvWriters[message.Chat]
 	if !exists {
 		fileName := fmt.Sprintf("%s/%s.csv", tracker.config.Path, message.Chat)
-		file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0755)
 		if err != nil {
 			log.Errorf("Failed to open CSV file: %v", err)
 			return err

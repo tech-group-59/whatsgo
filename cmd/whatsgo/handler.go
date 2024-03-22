@@ -108,18 +108,19 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 					return
 				}
 				exts, _ := mime.ExtensionsByType(img.GetMimetype())
-				path := fmt.Sprintf("%s/%s%s", fileFolder, evt.Info.ID, exts[0])
+				subFolder := fmt.Sprintf("%s/%s", fileFolder, chat)
+				path := fmt.Sprintf("%s/%s%s", subFolder, evt.Info.ID, exts[0])
 
-				// Create folder if it doesn't exist
-				if _, err := os.Stat(fileFolder); os.IsNotExist(err) {
-					err = os.Mkdir(fileFolder, 0755)
+				// Create sub folder if it doesn't exist
+				if _, err := os.Stat(subFolder); os.IsNotExist(err) {
+					err = os.MkdirAll(subFolder, 0755)
 					if err != nil {
-						log.Errorf("Failed to create folder: %v", err)
+						log.Errorf("Failed to create subfolder: %v", err)
 						return
 					}
 				}
 
-				err = os.WriteFile(path, data, 0600)
+				err = os.WriteFile(path, data, 0755)
 				if err != nil {
 					log.Errorf("Failed to save image: %v", err)
 					return
