@@ -37,10 +37,9 @@ RUN go mod download
 
 COPY . .
 
-RUN mkdir ./build
-
 # Change ownership of the build directory to appuser
 USER root
+RUN mkdir ./build
 RUN chown -R appuser:appuser ./build
 USER appuser
 
