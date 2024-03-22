@@ -1,7 +1,7 @@
 chats:
 #  - <chat1-to-track>@s.whatsapp.net
 #  - <chat2-to-track>@s.whatsapp.net
-file_storage_path: "folder-to-store-files"
+file_storage_path: "data/files"
 ocr:
   enabled: false
 database:
