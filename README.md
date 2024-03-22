@@ -49,6 +49,12 @@ google_cloud:
   folder_id: "<google-folder-id>"
 ```
 
+## CLI
+
+To get list of groups and contacts enter `listgroups` command.
+
+```bash 
+
 ## Trackers
 
 The application uses a tracker to track messages and files from selected chats.

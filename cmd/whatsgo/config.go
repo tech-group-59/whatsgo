@@ -5,6 +5,11 @@ import (
 	"os"
 )
 
+type CSVConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Path    string `yaml:"path"`
+}
+
 type DBConfig struct {
 	ConnectionString string `yaml:"connection_string"`
 	Dialect          string `yaml:"dialect"`
@@ -25,6 +30,7 @@ type Config struct {
 	Chats           []string          `yaml:"chats"`
 	FileStoragePath string            `yaml:"file_storage_path"`
 	Database        DBConfig          `yaml:"database"`
+	CSV             CSVConfig         `yaml:"csv"`
 	GoogleCloud     GoogleCloudConfig `yaml:"google_cloud"`
 	OCR             OCRConfig         `yaml:"ocr"`
 }
@@ -64,6 +70,10 @@ func GetDefaultConfig() *Config {
 		Database: DBConfig{
 			Dialect:          "sqlite3",
 			ConnectionString: "file:whatsgo.db?_foreign_keys=on",
+		},
+		CSV: CSVConfig{
+			Enabled: false,
+			Path:    "csv",
 		},
 		GoogleCloud: GoogleCloudConfig{
 			Enabled:         false,

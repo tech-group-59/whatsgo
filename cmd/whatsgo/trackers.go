@@ -26,6 +26,9 @@ func CreateTrackers(config *Config, db *sql.DB) []Tracker {
 	}
 
 	trackers = append(trackers, &DBTracker{db: db})
+	if config.CSV.Enabled {
+		trackers = append(trackers, &CSVTracker{})
+	}
 	if config.GoogleCloud.Enabled {
 		trackers = append(trackers, &CloudTracker{})
 	}
