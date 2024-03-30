@@ -43,7 +43,8 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 		case *events.StreamReplaced:
 			os.Exit(0)
 		case *events.Message:
-			metaParts := []string{fmt.Sprintf("pushname: %s", evt.Info.PushName), fmt.Sprintf("timestamp: %s", evt.Info.Timestamp)}
+			timestamp := evt.Info.Timestamp
+			metaParts := []string{fmt.Sprintf("pushname: %s", evt.Info.PushName), fmt.Sprintf("timestamp: %s", timestamp)}
 			if evt.Info.Type != "" {
 				metaParts = append(metaParts, fmt.Sprintf("type: %s", evt.Info.Type))
 			}
@@ -99,7 +100,7 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 				}
 			}
 
-			date := evt.Info.Timestamp.Format("02.01.2006")
+			date := timestamp.Format("02.01.2006")
 
 			// Get the chat alias or ID
 			folder := chat
@@ -110,7 +111,11 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 				}
 			}
 
-			metadata := MessageMetadata{Date: date, Folder: folder}
+			metadata := MessageMetadata{
+				Date:      date,
+				Folder:    folder,
+				Timestamp: timestamp,
+			}
 
 			var files []string
 			img := evt.Message.GetImageMessage()
@@ -155,7 +160,7 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 
 			if trackable && (text != "" || len(files) > 0) {
 				log.Infof("Tracking message from %s in chat %s", sender, chat)
-				ProcessMessage(trackers, evt.Info.ID, sender, chat, text, evt.Info.Timestamp.String(), files, metadata)
+				ProcessMessage(trackers, evt.Info.ID, sender, chat, text, timestamp.String(), files, metadata)
 				log.Infof("Message text: %s", text)
 			} else {
 				log.Infof("Ignoring message from %s in chat %s", sender, chat)

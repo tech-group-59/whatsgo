@@ -192,7 +192,11 @@ func (tracker *CloudTracker) TrackMessage(message *TrackableMessage) error {
 		fileLinksInterface[i+1] = v
 	}
 	values := append([]interface{}{
-		message.MessageID, message.Timestamp, message.Sender, message.Content, message.ParsedContent,
+		message.MessageID,
+		message.Metadata.Timestamp.Format("15:04:05"),
+		message.Sender,
+		message.Content,
+		message.ParsedContent,
 	}, fileLinksInterface...)
 	err = tracker.insertRow(spreadsheet, values)
 	if err != nil {

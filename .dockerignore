@@ -48,5 +48,8 @@ _cgo_export.*
 # Ignore data files
 data/*
 
+# Ignore build files
+build/
+
 # Google Cloud Platform token
 token.json

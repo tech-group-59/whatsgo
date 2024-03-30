@@ -2,11 +2,13 @@ package main
 
 import (
 	"database/sql"
+	"time"
 )
 
 type MessageMetadata struct {
-	Date   string
-	Folder string
+	Date      string
+	Folder    string
+	Timestamp time.Time
 }
 
 type TrackableMessage struct {

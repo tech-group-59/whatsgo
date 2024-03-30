@@ -3,6 +3,7 @@ services:
     container_name: whatsgo-app
     build: .
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - ./config:/app/config
       - ./data:/app/data
     logging:
