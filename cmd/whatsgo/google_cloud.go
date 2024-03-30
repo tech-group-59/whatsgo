@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // https://developers.google.com/sheets/api/quickstart/go
@@ -118,11 +119,60 @@ func (tracker *CloudTracker) Init(config *Config) error {
 	return nil
 }
 
+func (tracker *CloudTracker) getOrCreateFolder(parentFolderId string, path string) (string, error) {
+	// Split the path into folders
+	folders := strings.Split(path, "/")
+
+	// Create the root folder if it does not exist
+	if parentFolderId == "" {
+		rootFolder, err := tracker.driveService.Files.Get("root").Do()
+		if err != nil {
+			log.Errorf("Unable to get root folder: %v", err)
+			return "", err
+		}
+		parentFolderId = rootFolder.Id
+	}
+
+	// Create the folders
+	folderId := parentFolderId
+	for _, folder := range folders {
+		// Search for the folder
+		searchResult, err := tracker.driveService.Files.List().Q(fmt.Sprintf("name='%s' and '%s' in parents", folder, folderId)).Do()
+		if err != nil {
+			log.Errorf("Unable to search for folder: %v", err)
+			return "", err
+		}
+		if len(searchResult.Files) == 0 {
+			// Create the folder
+			newFolder, err := tracker.driveService.Files.Create(&drive.File{
+				Name:     folder,
+				Parents:  []string{folderId},
+				MimeType: "application/vnd.google-apps.folder",
+			}).Do()
+			if err != nil {
+				log.Errorf("Unable to create folder: %v", err)
+				return "", err
+			}
+			folderId = newFolder.Id
+		} else {
+			folderId = searchResult.Files[0].Id
+		}
+	}
+
+	return folderId, nil
+}
+
 func (tracker *CloudTracker) TrackMessage(message *TrackableMessage) error {
+	path := fmt.Sprintf("%s/%s", message.Metadata.Folder, message.Metadata.Date)
+	folderId, err := tracker.getOrCreateFolder(tracker.folderID, path)
+	if err != nil {
+		return err
+	}
+
 	// Store all files into a Google Drive folder
 	fileLinks := make([]string, len(message.Files))
 	for i, filePath := range message.Files {
-		link, err := tracker.storeFile(filePath)
+		link, err := tracker.storeFile(filePath, folderId)
 		if err != nil {
 			return err
 		}
@@ -130,7 +180,7 @@ func (tracker *CloudTracker) TrackMessage(message *TrackableMessage) error {
 	}
 
 	// Get or create the spreadsheet for the chat
-	spreadsheet, err := tracker.getOrCreateSpreadsheet(message.Chat)
+	spreadsheet, err := tracker.getOrCreateSpreadsheet(message.Chat, folderId)
 	if err != nil {
 		return err
 	}
@@ -154,7 +204,7 @@ func (tracker *CloudTracker) TrackMessage(message *TrackableMessage) error {
 
 // StoreFile stores a file in Google Cloud
 
-func (tracker *CloudTracker) storeFile(filePath string) (string, error) {
+func (tracker *CloudTracker) storeFile(filePath string, folderId string) (string, error) {
 	// Open the file
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -167,7 +217,7 @@ func (tracker *CloudTracker) storeFile(filePath string) (string, error) {
 	file, err := tracker.driveService.Files.Create(&drive.File{
 		Name:     filepath.Base(filePath),
 		MimeType: "application/octet-stream",
-		Parents:  []string{tracker.folderID},
+		Parents:  []string{folderId},
 	}).Media(f).Do()
 	if err != nil {
 		log.Errorf("Unable to create file on Drive: %v", err)
@@ -190,9 +240,9 @@ func (tracker *CloudTracker) storeFile(filePath string) (string, error) {
 	return "https://drive.google.com/uc?id=" + file.Id, nil
 }
 
-func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string) (*sheets.Spreadsheet, error) {
+func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string, folderId string) (*sheets.Spreadsheet, error) {
 	// Check if a spreadsheet exists for the chat inside the specified folder
-	searchResult, err := tracker.driveService.Files.List().Q(fmt.Sprintf("name='%s' and '%s' in parents", chat, tracker.folderID)).Do()
+	searchResult, err := tracker.driveService.Files.List().Q(fmt.Sprintf("name='%s' and '%s' in parents", chat, folderId)).Do()
 	if err != nil {
 		log.Errorf("Unable to search for file: %v", err)
 		return nil, err
@@ -222,7 +272,7 @@ func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string) (*sheets.Spread
 	}
 
 	// Move the spreadsheet to the specified folder
-	_, err = tracker.driveService.Files.Update(spreadsheet.SpreadsheetId, &drive.File{}).AddParents(tracker.folderID).Do()
+	_, err = tracker.driveService.Files.Update(spreadsheet.SpreadsheetId, &drive.File{}).AddParents(folderId).Do()
 	if err != nil {
 		log.Errorf("Unable to move spreadsheet to folder: %v", err)
 		return nil, err

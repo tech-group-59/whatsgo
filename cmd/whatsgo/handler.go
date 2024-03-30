@@ -99,6 +99,19 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 				}
 			}
 
+			date := evt.Info.Timestamp.Format("02.01.2006")
+
+			// Get the chat alias or ID
+			folder := chat
+			for _, c := range config.Chats {
+				if c.ID == chat && c.Alias != "" {
+					folder = c.Alias
+					break
+				}
+			}
+
+			metadata := MessageMetadata{Date: date, Folder: folder}
+
 			var files []string
 			img := evt.Message.GetImageMessage()
 			if trackable && img != nil {
@@ -108,8 +121,13 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 					return
 				}
 				exts, _ := mime.ExtensionsByType(img.GetMimetype())
-				subFolder := fmt.Sprintf("%s/%s", fileFolder, chat)
-				path := fmt.Sprintf("%s/%s%s", subFolder, evt.Info.ID, exts[0])
+				ext := exts[0]
+				if ext == ".jpe" {
+					ext = ".jpg"
+				}
+
+				subFolder := fmt.Sprintf("%s/%s/%s", fileFolder, folder, date)
+				path := fmt.Sprintf("%s/%s%s", subFolder, evt.Info.ID, ext)
 
 				// Create sub folder if it doesn't exist
 				if _, err := os.Stat(subFolder); os.IsNotExist(err) {
@@ -137,7 +155,7 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 
 			if trackable && (text != "" || len(files) > 0) {
 				log.Infof("Tracking message from %s in chat %s", sender, chat)
-				ProcessMessage(trackers, evt.Info.ID, sender, chat, text, evt.Info.Timestamp.String(), files)
+				ProcessMessage(trackers, evt.Info.ID, sender, chat, text, evt.Info.Timestamp.String(), files, metadata)
 				log.Infof("Message text: %s", text)
 			} else {
 				log.Infof("Ignoring message from %s in chat %s", sender, chat)

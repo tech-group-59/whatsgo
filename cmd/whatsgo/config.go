@@ -26,8 +26,13 @@ type OCRConfig struct {
 	Enabled bool `yaml:"enabled"`
 }
 
+type Chat struct {
+	ID    string `yaml:"id"`
+	Alias string `yaml:"alias,omitempty"`
+}
+
 type Config struct {
-	Chats           []string          `yaml:"chats"`
+	Chats           []Chat            `yaml:"chats"`
 	FileStoragePath string            `yaml:"file_storage_path"`
 	Database        DBConfig          `yaml:"database"`
 	CSV             CSVConfig         `yaml:"csv"`
@@ -55,8 +60,8 @@ func (c *Config) IsChatTrackable(chatID string) bool {
 	}
 
 	log.Infof("Checking if chat '%s' is trackable", chatID)
-	for _, id := range c.Chats {
-		if id == chatID {
+	for _, chat := range c.Chats {
+		if chat.ID == chatID {
 			return true
 		}
 	}

@@ -36,7 +36,11 @@ or specified using the `--config` flag.
 
 ```yaml
 chats:
-  - <chat-to-track>@s.whatsapp.net
+  - id: <chat1-to-track>@s.whatsapp.net
+    alias: 'Chat1 alias'
+  - id: <chat2-to-track>@s.whatsapp.net
+    alias: 'Chat2 alias'
+  - id: <chat3-to-track>@s.whatsapp.net
 file_storage_path: "folder-to-store-files"
 ocr:
   enabled: false

@@ -4,6 +4,11 @@ import (
 	"database/sql"
 )
 
+type MessageMetadata struct {
+	Date   string
+	Folder string
+}
+
 type TrackableMessage struct {
 	MessageID     string
 	Sender        string
@@ -12,6 +17,7 @@ type TrackableMessage struct {
 	ParsedContent string
 	Timestamp     string
 	Files         []string
+	Metadata      MessageMetadata
 }
 
 type Tracker interface {
@@ -44,7 +50,7 @@ func CreateTrackers(config *Config, db *sql.DB) []Tracker {
 	return trackers
 }
 
-func ProcessMessage(trackers []Tracker, messageID string, sender string, chat string, content string, timestamp string, files []string) {
+func ProcessMessage(trackers []Tracker, messageID string, sender string, chat string, content string, timestamp string, files []string, metadata MessageMetadata) error {
 	message := TrackableMessage{
 		MessageID:     messageID,
 		Sender:        sender,
@@ -53,6 +59,7 @@ func ProcessMessage(trackers []Tracker, messageID string, sender string, chat st
 		ParsedContent: "",
 		Timestamp:     timestamp,
 		Files:         files,
+		Metadata:      metadata,
 	}
 
 	for _, tracker := range trackers {
@@ -61,4 +68,5 @@ func ProcessMessage(trackers []Tracker, messageID string, sender string, chat st
 			log.Errorf("Failed to store message in tracker: %v", err)
 		}
 	}
+	return nil
 }
