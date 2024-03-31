@@ -79,6 +79,9 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 			var text string
 			if trackable && evt.Info.Type == "text" {
 				text = evt.Message.GetConversation()
+				if text == "" && evt.Message.ExtendedTextMessage != nil {
+					text = *evt.Message.ExtendedTextMessage.Text
+				}
 			}
 
 			if evt.Message.GetPollUpdateMessage() != nil {
