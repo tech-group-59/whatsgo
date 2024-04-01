@@ -192,6 +192,38 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 				log.Infof("Saved voice message in message to %s", path)
 			}
 
+			document := evt.Message.GetDocumentMessage()
+			if trackable && document != nil {
+				data, err := cli.Download(document)
+				if err != nil {
+					log.Errorf("Failed to download document: %v", err)
+					return
+				}
+
+				exts, _ := mime.ExtensionsByType(document.GetMimetype())
+
+				subFolder := fmt.Sprintf("%s/%s/%s", fileFolder, folder, date)
+				path := fmt.Sprintf("%s/%s%s", subFolder, evt.Info.ID, exts[0])
+
+				// Create sub folder if it doesn't exist
+				if _, err := os.Stat(subFolder); os.IsNotExist(err) {
+					err = os.MkdirAll(subFolder, 0755)
+					if err != nil {
+						log.Errorf("Failed to create subfolder: %v", err)
+						return
+					}
+				}
+
+				err = os.WriteFile(path, data, 0755)
+				if err != nil {
+					log.Errorf("Failed to save document: %v", err)
+					return
+				}
+				files = append(files, path)
+
+				log.Infof("Saved document in message to %s", path)
+			}
+
 			if trackable && (text != "" || len(files) > 0) {
 				log.Infof("Tracking message from %s in chat %s", sender, chat)
 				ProcessMessage(trackers, evt.Info.ID, sender, chat, text, timestamp.String(), files, metadata)
