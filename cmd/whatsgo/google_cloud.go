@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // https://developers.google.com/sheets/api/quickstart/go
@@ -24,11 +25,122 @@ func getClient(config *GoogleCloudConfig, gConfig *oauth2.Config) *http.Client {
 	// time.
 	tokFile := config.TokenFile
 	tok, err := tokenFromFile(tokFile)
+
 	if err != nil {
 		tok = getTokenFromWeb(gConfig)
 		saveToken(tokFile, tok)
 	}
-	return gConfig.Client(context.Background(), tok)
+
+	// Check if the token is expired
+	if isTokenExpired(tok) {
+		// Refresh the token
+		newToken, err := refreshToken(gConfig, tok)
+		if err != nil {
+			// If the token cannot be refreshed go to manual authorization
+			newToken = getTokenFromWeb(gConfig)
+			if newToken == nil {
+				log.Errorf("Unable to refresh token: %v", err)
+				return nil
+			}
+
+		}
+		// Update the token in the token source
+		tok = newToken
+
+		// Save the new token
+		saveToken(tokFile, newToken)
+	}
+
+	// Create a token source that will refresh the token if it expires
+	tokenSource := gConfig.TokenSource(context.Background(), tok)
+
+	// Create a new client using the token source
+	client := oauth2.NewClient(context.Background(), tokenSource)
+
+	// Wrap the client's Transport to handle token expiry error
+	client.Transport = &tokenCheckTransport{
+		originalTransport: client.Transport,
+		config:            gConfig,
+		token:             tok,
+		tokenFile:         tokFile,
+	}
+
+	return client
+}
+
+type tokenCheckTransport struct {
+	originalTransport http.RoundTripper
+	config            *oauth2.Config
+	token             *oauth2.Token
+	tokenFile         string
+}
+
+func refreshToken(config *oauth2.Config, token *oauth2.Token) (*oauth2.Token, error) {
+	// Create a token source from the config and the token
+	tokenSource := config.TokenSource(context.Background(), token)
+
+	// Get a new token from the token source
+	newToken, err := tokenSource.Token()
+	if err != nil {
+		return nil, err
+	}
+
+	return newToken, nil
+}
+
+func (t *tokenCheckTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Check if the token has expired
+	if isTokenExpired(t.token) {
+		// Refresh the token
+		newToken, err := refreshToken(t.config, t.token)
+		if err != nil {
+			// If the token cannot be refreshed go to manual authorization
+			newToken = getTokenFromWeb(t.config)
+			if newToken == nil {
+				return nil, fmt.Errorf("unable to refresh token: %v", err)
+			}
+		}
+		// Update the token in the token source
+		t.token = newToken
+
+		// Save the new token
+		saveToken(t.tokenFile, newToken)
+	}
+
+	// Make the HTTP request
+	resp, err := t.originalTransport.RoundTrip(req)
+
+	// Check if the error message contains "Token has been expired or revoked"
+	if err != nil && strings.Contains(err.Error(), "Token has been expired or revoked") {
+		// Refresh the token
+		newToken, err := refreshToken(t.config, t.token)
+		if err != nil {
+			return nil, err
+		}
+
+		// Save the new token
+		saveToken(t.tokenFile, newToken)
+
+		// Update the token in the token source
+		t.token = newToken
+
+		// Retry the HTTP request with the new token
+		req.Header.Set("Authorization", "Bearer "+newToken.AccessToken)
+		resp, err = t.originalTransport.RoundTrip(req)
+	}
+
+	return resp, err
+}
+
+func isTokenExpired(token *oauth2.Token) bool {
+	// Subtract one hour from the current time
+	oneHourBefore := time.Now().Add(-time.Hour)
+	fmt.Printf("One hour before: %v\n", oneHourBefore)
+
+	// Check if this time is after the token's expiry time
+	isExpired := token.Expiry.Unix() < oneHourBefore.Unix()
+	fmt.Printf("Token expired: %v\n", isExpired)
+	return isExpired
 }
 
 // Request a token from the web, then returns the retrieved token.
@@ -166,6 +278,12 @@ func (tracker *CloudTracker) TrackMessage(message *TrackableMessage) error {
 	path := fmt.Sprintf("%s/%s", message.Metadata.Folder, message.Metadata.Date)
 	folderId, err := tracker.getOrCreateFolder(tracker.folderID, path)
 	if err != nil {
+		// Check if error is oauth2.RetrieveError with StatusCode 400
+		if retrieveErr, ok := err.(*oauth2.RetrieveError); ok && retrieveErr.Response.StatusCode == 400 {
+			// Refresh the token
+			fmt.Println("Refreshing token")
+
+		}
 		return err
 	}
 
