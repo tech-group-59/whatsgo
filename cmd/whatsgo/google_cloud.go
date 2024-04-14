@@ -36,10 +36,11 @@ func getClient(config *GoogleCloudConfig, gConfig *oauth2.Config) *http.Client {
 		// Refresh the token
 		newToken, err := refreshToken(gConfig, tok)
 		if err != nil {
+			log.Errorf("Unable to refresh token: %v", err)
 			// If the token cannot be refreshed go to manual authorization
 			newToken = getTokenFromWeb(gConfig)
 			if newToken == nil {
-				log.Errorf("Unable to refresh token: %v", err)
+				log.Errorf("Unable to refresh token manually after error: %v", err)
 				return nil
 			}
 
