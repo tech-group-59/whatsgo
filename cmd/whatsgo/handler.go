@@ -67,7 +67,7 @@ func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface
 				metaParts = append(metaParts, "edit")
 			}
 
-			log.Infof("Received message %s from %s (%s): %+v", evt.Info.ID, evt.Info.SourceString(), strings.Join(metaParts, ", "), evt.Message)
+			log.Infof("Received message %s from %s (%s)", evt.Info.ID, evt.Info.SourceString(), strings.Join(metaParts, ", "))
 
 			log.Infof(evt.Info.MessageSource.Chat.String())
 			log.Infof(evt.Info.MessageSource.Sender.String())
