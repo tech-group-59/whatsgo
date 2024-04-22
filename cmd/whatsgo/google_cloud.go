@@ -66,7 +66,36 @@ func getClient(config *GoogleCloudConfig, gConfig *oauth2.Config) *http.Client {
 		tokenFile:         tokFile,
 	}
 
+	// Start the token refresh task
+	startTokenRefreshTask(config, gConfig, tok, tokFile)
+
 	return client
+}
+
+func startTokenRefreshTask(config *GoogleCloudConfig, gConfig *oauth2.Config, tok *oauth2.Token, tokFile string) {
+	// Create a ticker for refreshing the token every hour
+	ticker := time.NewTicker(1 * time.Hour)
+	quit := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				// Refresh the token
+				log.Infof("Refreshing token at %v", time.Now())
+				newToken, err := refreshToken(gConfig, tok)
+				if err != nil {
+					log.Errorf("Unable to refresh token: %v", err)
+					return
+				}
+				// Save the new token
+				saveToken(tokFile, newToken)
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 
 type tokenCheckTransport struct {
@@ -230,6 +259,31 @@ func (tracker *CloudTracker) Init(config *Config) error {
 	tracker.sheetsService = sheetsService
 
 	return nil
+}
+
+func (tracker *CloudTracker) startTokenRefreshTask(config *Config, gConfig *oauth2.Config, tok *oauth2.Token, tokFile string) {
+	// Create a ticker for refreshing the token every hour
+	ticker := time.NewTicker(1 * time.Hour)
+	quit := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				// Refresh the token
+				newToken, err := refreshToken(gConfig, tok)
+				if err != nil {
+					log.Errorf("Unable to refresh token: %v", err)
+					return
+				}
+				// Save the new token
+				saveToken(tokFile, newToken)
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 
 func (tracker *CloudTracker) getOrCreateFolder(parentFolderId string, path string) (string, error) {
