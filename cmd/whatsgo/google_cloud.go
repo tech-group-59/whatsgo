@@ -7,6 +7,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 	"net/http"
@@ -429,6 +430,33 @@ func (tracker *CloudTracker) storeFile(filePath string, folderId string) (string
 }
 
 func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string, folderId string) (*sheets.Spreadsheet, error) {
+	var spreadsheet *sheets.Spreadsheet
+	var err error
+	backoffTime := 1 * time.Second
+
+	for i := 0; i < 5; i++ {
+		spreadsheet, err = tracker.tryGetOrCreateSpreadsheet(chat, folderId)
+		if err != nil {
+			gErr, ok := err.(*googleapi.Error)
+			if ok && gErr.Code == 429 {
+				// If the error is a rate limit error, wait and try again
+				time.Sleep(backoffTime)
+				backoffTime *= 2
+				continue
+			}
+			// If the error is not a rate limit error, return it
+			return nil, err
+		}
+		// If the request was successful, return the result
+		return spreadsheet, nil
+	}
+
+	return nil, fmt.Errorf("getOrCreateSpreadsheet failed after 5 retries: %v", err)
+
+}
+
+func (tracker *CloudTracker) tryGetOrCreateSpreadsheet(chat string, folderId string) (*sheets.Spreadsheet, error) {
+
 	// Check if a spreadsheet exists for the chat inside the specified folder
 	searchResult, err := tracker.driveService.Files.List().Q(fmt.Sprintf("name='%s' and '%s' in parents", chat, folderId)).Do()
 	if err != nil {
