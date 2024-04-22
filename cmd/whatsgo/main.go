@@ -173,7 +173,7 @@ func main() {
 			args := strings.Fields(cmd)
 			cmd = args[0]
 			args = args[1:]
-			go handleCmd(strings.ToLower(cmd), args)
+			go handleCmd(strings.ToLower(cmd), args, db)
 		}
 	}
 }
@@ -197,8 +197,38 @@ func parseJID(arg string) (types.JID, bool) {
 	}
 }
 
-func handleCmd(cmd string, args []string) {
+func handleCmd(cmd string, args []string, db *sql.DB) {
 	switch cmd {
+	case "get-db-chats":
+		DBTracker := &DBTracker{db: db}
+		chats, err := DBTracker.GetChats()
+		if err != nil {
+			log.Errorf("Failed to get chats: %v", err)
+			return
+		}
+		for _, chat := range chats {
+			log.Infof("Chat: %s", chat)
+		}
+	case "process-chat":
+		if len(args) < 1 {
+			log.Errorf("Usage: process-chat <jid>")
+			return
+		}
+		recipient, ok := parseJID(args[0])
+		if !ok {
+			return
+		}
+		log.Infof("Processing chat %s", recipient)
+
+		DBTracker := &DBTracker{db: db}
+		messages, err := DBTracker.GetMessagesByChat(recipient.String())
+		if err != nil {
+			log.Errorf("Failed to get messages: %v", err)
+			return
+		}
+		for _, message := range messages {
+			log.Infof("Message: %+v", message)
+		}
 	case "pair-phone":
 		if len(args) < 1 {
 			log.Errorf("Usage: pair-phone <number>")

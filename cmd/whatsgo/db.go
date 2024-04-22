@@ -40,6 +40,50 @@ func (tracker *DBTracker) Init(config *Config) error {
 	return nil
 }
 
+func (tracker *DBTracker) GetChats() ([]string, error) {
+	rows, err := tracker.db.Query(`SELECT DISTINCT chat FROM messages`)
+	if err != nil {
+		log.Errorf("Failed to query messages from database: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chats []string
+	for rows.Next() {
+		var chat string
+		err := rows.Scan(&chat)
+		if err != nil {
+			log.Errorf("Failed to scan message from database: %v", err)
+			return nil, err
+		}
+		chats = append(chats, chat)
+	}
+
+	return chats, nil
+}
+
+func (tracker *DBTracker) GetMessagesByChat(chat string) ([]TrackableMessage, error) {
+	rows, err := tracker.db.Query(`SELECT id, sender, chat, content, timestamp FROM messages WHERE chat = ?`, chat)
+	if err != nil {
+		log.Errorf("Failed to query messages from database: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []TrackableMessage
+	for rows.Next() {
+		var message TrackableMessage
+		err := rows.Scan(&message.MessageID, &message.Sender, &message.Chat, &message.Content, &message.Timestamp)
+		if err != nil {
+			log.Errorf("Failed to scan message from database: %v", err)
+			return nil, err
+		}
+		messages = append(messages, message)
+	}
+
+	return messages, nil
+}
+
 // StoreMessage stores a message in the database
 func (tracker *DBTracker) storeMessage(messageID string, sender string, chat string, content string, timestamp string) error {
 	_, err := tracker.db.Exec(`INSERT INTO messages (id, sender, chat, content, timestamp) VALUES (?, ?, ?, ?, ?)`,
