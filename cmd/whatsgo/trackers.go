@@ -65,9 +65,10 @@ func ProcessMessage(trackers []Tracker, messageID string, sender string, chat st
 	}
 
 	for _, tracker := range trackers {
+		log.Debugf("Processing message with tracker: %v", tracker)
 		err := tracker.TrackMessage(&message)
 		if err != nil {
-			log.Errorf("Failed to store message in tracker: %v", err)
+			log.Errorf("Failed to store message in tracker(%v) : %v", tracker, err)
 		}
 	}
 	return nil
