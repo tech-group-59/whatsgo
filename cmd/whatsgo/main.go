@@ -125,7 +125,12 @@ func main() {
 		}()
 	}
 
-	var handler = CreateHandler(*fileFolder, db, config)
+	var trackers = CreateTrackers(config, db)
+	var handler = CreateHandler(*fileFolder, trackers, config)
+
+	// find trackers
+	dbTracker := findDBTracker(trackers)
+	cloudTracker := findCloudTracker(trackers)
 
 	cli.AddEventHandler(handler)
 	err = cli.Connect()
@@ -173,9 +178,27 @@ func main() {
 			args := strings.Fields(cmd)
 			cmd = args[0]
 			args = args[1:]
-			go handleCmd(strings.ToLower(cmd), args, db)
+			go handleCmd(strings.ToLower(cmd), args, dbTracker, cloudTracker)
 		}
 	}
+}
+
+func findDBTracker(trackers []Tracker) *DBTracker {
+	for _, tracker := range trackers {
+		if dbTracker, ok := tracker.(*DBTracker); ok {
+			return dbTracker
+		}
+	}
+	return nil
+}
+
+func findCloudTracker(trackers []Tracker) *CloudTracker {
+	for _, tracker := range trackers {
+		if cloudTracker, ok := tracker.(*CloudTracker); ok {
+			return cloudTracker
+		}
+	}
+	return nil
 }
 
 func parseJID(arg string) (types.JID, bool) {
@@ -197,11 +220,10 @@ func parseJID(arg string) (types.JID, bool) {
 	}
 }
 
-func handleCmd(cmd string, args []string, db *sql.DB) {
+func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *CloudTracker) {
 	switch cmd {
 	case "get-db-chats":
-		DBTracker := &DBTracker{db: db}
-		chats, err := DBTracker.GetChats()
+		chats, err := dbTracker.GetChats()
 		if err != nil {
 			log.Errorf("Failed to get chats: %v", err)
 			return
@@ -209,6 +231,27 @@ func handleCmd(cmd string, args []string, db *sql.DB) {
 		for _, chat := range chats {
 			log.Infof("Chat: %s", chat)
 		}
+	case "get-db-messages":
+		if len(args) < 1 {
+			log.Errorf("Usage: get-db-messages <jid>")
+			return
+		}
+		recipient, ok := parseJID(args[0])
+		if !ok {
+			return
+		}
+		messages, err := dbTracker.GetMessagesByChat(recipient.String(), false)
+		if err != nil {
+			log.Errorf("Failed to get messages: %v", err)
+			return
+		}
+		messageCount := 0
+		for _, message := range messages {
+			log.Infof("Message: %+v", message)
+			messageCount++
+		}
+		log.Infof("Found %d messages", messageCount)
+
 	case "process-chat":
 		if len(args) < 1 {
 			log.Errorf("Usage: process-chat <jid>")
@@ -220,15 +263,19 @@ func handleCmd(cmd string, args []string, db *sql.DB) {
 		}
 		log.Infof("Processing chat %s", recipient)
 
-		DBTracker := &DBTracker{db: db}
-		messages, err := DBTracker.GetMessagesByChat(recipient.String())
+		messages, err := dbTracker.GetMessagesByChat(recipient.String(), true)
+		messageCount := 0
 		if err != nil {
 			log.Errorf("Failed to get messages: %v", err)
 			return
 		}
 		for _, message := range messages {
 			log.Infof("Message: %+v", message)
+			cloudTracker.TrackMessage(&message)
+			messageCount++
 		}
+		log.Infof("Processed %d messages", messageCount)
+
 	case "pair-phone":
 		if len(args) < 1 {
 			log.Errorf("Usage: pair-phone <number>")

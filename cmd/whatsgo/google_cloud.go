@@ -390,6 +390,17 @@ func (tracker *CloudTracker) storeFile(filePath string, folderId string) (string
 	}
 	defer f.Close()
 
+	// Check if the file already exists in the folder
+	searchResult, err := tracker.driveService.Files.List().Q(fmt.Sprintf("name='%s' and '%s' in parents", filepath.Base(filePath), folderId)).Do()
+	if err != nil {
+		log.Errorf("Unable to search for file: %v", err)
+		return "", err
+	}
+	if len(searchResult.Files) != 0 {
+		// If the file already exists, return the link to the file
+		return "https://drive.google.com/uc?id=" + searchResult.Files[0].Id, nil
+	}
+
 	// Create a new file on Google Drive
 	file, err := tracker.driveService.Files.Create(&drive.File{
 		Name:     filepath.Base(filePath),
@@ -459,8 +470,21 @@ func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string, folderId string
 }
 
 func (tracker *CloudTracker) insertRow(spreadsheet *sheets.Spreadsheet, values []interface{}) error {
+	// Check if message with the same ID already exists in the spreadsheet
+	messageIds, err := tracker.sheetsService.Spreadsheets.Values.Get(spreadsheet.SpreadsheetId, "A:A").Do()
+	if err != nil {
+		log.Errorf("Unable to get values from spreadsheet: %v", err)
+		return err
+	}
+	for _, row := range messageIds.Values {
+		if row[0] == values[0] {
+			log.Infof("Message with ID %s already exists in spreadsheet %s", values[0], spreadsheet.SpreadsheetId)
+			return nil
+		}
+	}
+
 	// Insert a new row at the top of the document
-	_, err := tracker.sheetsService.Spreadsheets.Values.Append(spreadsheet.SpreadsheetId, "A1", &sheets.ValueRange{
+	_, err = tracker.sheetsService.Spreadsheets.Values.Append(spreadsheet.SpreadsheetId, "A1", &sheets.ValueRange{
 		Values: [][]interface{}{values},
 	}).ValueInputOption("USER_ENTERED").InsertDataOption("INSERT_ROWS").Do()
 	if err != nil {

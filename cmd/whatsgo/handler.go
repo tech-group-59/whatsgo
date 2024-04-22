@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/types"
@@ -11,11 +10,10 @@ import (
 	"strings"
 )
 
-func CreateHandler(fileFolder string, db *sql.DB, config *Config) func(interface{}) {
+func CreateHandler(fileFolder string, trackers []Tracker, config *Config) func(interface{}) {
 
 	//var historySyncID int32
 	//var startupTime = time.Now().Unix()
-	var trackers = CreateTrackers(config, db)
 
 	handler := func(rawEvt interface{}) {
 		switch evt := rawEvt.(type) {
