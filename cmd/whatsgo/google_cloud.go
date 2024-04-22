@@ -476,8 +476,9 @@ func (tracker *CloudTracker) insertRow(spreadsheet *sheets.Spreadsheet, values [
 		log.Errorf("Unable to get values from spreadsheet: %v", err)
 		return err
 	}
+
 	for _, row := range messageIds.Values {
-		if row[0] == values[0] {
+		if len(row) > 0 && row[0] == values[0] {
 			log.Infof("Message with ID %s already exists in spreadsheet %s", values[0], spreadsheet.SpreadsheetId)
 			return nil
 		}
