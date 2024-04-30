@@ -78,7 +78,8 @@ func (tracker *DBTracker) GetChats() ([]string, error) {
 func (tracker *DBTracker) GetMessagesByChat(chat string, date time.Time) ([]TrackableMessage, error) {
 	var rows *sql.Rows
 	var err error
-	query := `SELECT id, sender, chat, content, parsed_content, timestamp FROM messages WHERE chat = ? AND timestamp = date(?)`
+	query := `SELECT id, sender, chat, content, parsed_content, timestamp FROM messages WHERE chat = ? AND date(substr(timestamp,0,11)) = date(?)`
+	log.Infof("Query date: %s", date.Format("2006-01-02"))
 	rows, err = tracker.db.Query(query, chat, date.Format("2006-01-02"))
 
 	if err != nil {
