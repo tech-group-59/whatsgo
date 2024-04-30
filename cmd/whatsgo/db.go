@@ -75,14 +75,12 @@ func (tracker *DBTracker) GetChats() ([]string, error) {
 	return chats, nil
 }
 
-func (tracker *DBTracker) GetMessagesByChat(chat string, onlyToday bool) ([]TrackableMessage, error) {
+func (tracker *DBTracker) GetMessagesByChat(chat string, date time.Time) ([]TrackableMessage, error) {
 	var rows *sql.Rows
 	var err error
-	if onlyToday {
-		rows, err = tracker.db.Query(`SELECT id, sender, chat, content, parsed_content, timestamp FROM messages WHERE chat = ? AND timestamp >= date('now')`, chat)
-	} else {
-		rows, err = tracker.db.Query(`SELECT id, sender, chat, content, parsed_content, timestamp FROM messages WHERE chat = ?`, chat)
-	}
+	query := `SELECT id, sender, chat, content, parsed_content, timestamp FROM messages WHERE chat = ? AND timestamp = date(?)`
+	rows, err = tracker.db.Query(query, chat, date.Format("2006-01-02"))
+
 	if err != nil {
 		log.Errorf("Failed to query messages from database: %v", err)
 		return nil, err

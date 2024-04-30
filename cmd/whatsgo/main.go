@@ -233,14 +233,16 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 		}
 	case "get-db-messages":
 		if len(args) < 1 {
-			log.Errorf("Usage: get-db-messages <jid>")
+			log.Errorf("Usage: get-db-messages <jid> <date (dd.mm.yyyy)>")
 			return
 		}
 		recipient, ok := parseJID(args[0])
+		date, err := time.Parse("02.01.2006", args[1])
+
 		if !ok {
 			return
 		}
-		messages, err := dbTracker.GetMessagesByChat(recipient.String(), false)
+		messages, err := dbTracker.GetMessagesByChat(recipient.String(), date)
 		if err != nil {
 			log.Errorf("Failed to get messages: %v", err)
 			return
@@ -253,28 +255,31 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 		log.Infof("Found %d messages", messageCount)
 
 	case "process-chat":
-		if len(args) < 1 {
-			log.Errorf("Usage: process-chat <jid>")
+		if len(args) < 2 {
+			log.Errorf("Usage: process-chat <jid> <date (dd.mm.yyyy)>")
 			return
 		}
 		recipient, ok := parseJID(args[0])
+		date, err := time.Parse("02.01.2006", args[1])
+
 		if !ok {
 			return
 		}
 		log.Infof("Processing chat %s", recipient)
 
-		messages, err := dbTracker.GetMessagesByChat(recipient.String(), true)
+		messages, err := dbTracker.GetMessagesByChat(recipient.String(), date)
 		messageCount := 0
 		if err != nil {
 			log.Errorf("Failed to get messages: %v", err)
 			return
 		}
+		log.Infof("Start processing %d messages for chat '%s' at date: %s", len(messages), args[0], date)
 		for _, message := range messages {
 			log.Infof("Message: %+v", message)
 			cloudTracker.TrackMessage(&message)
 			messageCount++
 		}
-		log.Infof("Processed %d messages", messageCount)
+		log.Infof("Processed of %d messages for chat '%s' done", messageCount, args[0])
 
 	case "pair-phone":
 		if len(args) < 1 {
