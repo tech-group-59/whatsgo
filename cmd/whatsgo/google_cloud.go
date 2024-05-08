@@ -434,7 +434,7 @@ func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string, folderId string
 	var err error
 	backoffTime := 1 * time.Second
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		spreadsheet, err = tracker.tryGetOrCreateSpreadsheet(chat, folderId)
 		if err != nil {
 			gErr, ok := err.(*googleapi.Error)
@@ -442,6 +442,7 @@ func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string, folderId string
 				// If the error is a rate limit error, wait and try again
 				time.Sleep(backoffTime)
 				backoffTime *= 2
+				log.Infof("Retrying getOrCreateSpreadsheet after rate limit error: %v", err)
 				continue
 			}
 			// If the error is not a rate limit error, return it
@@ -451,7 +452,7 @@ func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string, folderId string
 		return spreadsheet, nil
 	}
 
-	return nil, fmt.Errorf("getOrCreateSpreadsheet failed after 5 retries: %v", err)
+	return nil, fmt.Errorf("getOrCreateSpreadsheet failed after 10 retries: %v", err)
 
 }
 
