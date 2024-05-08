@@ -17,6 +17,8 @@ dcb:
 	docker compose build
 dcr:
 	docker compose run --rm app
+dcrb:
+	docker compose run --rm app bash
 dcu:
 	docker compose up
 dcud:
