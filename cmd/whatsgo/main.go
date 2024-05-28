@@ -279,7 +279,7 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 			cloudTracker.TrackMessage(&message)
 			messageCount++
 		}
-		log.Infof("Processed of %d messages for chat '%s' done", messageCount, args[0])
+		log.Infof("Processed of %d messages for chat '%s' done (%s)", messageCount, args[0], date)
 
 	case "pair-phone":
 		if len(args) < 1 {
