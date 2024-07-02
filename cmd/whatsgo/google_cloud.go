@@ -464,7 +464,7 @@ func (tracker *CloudTracker) tryGetOrCreateSpreadsheet(chat string, folderId str
 		log.Errorf("Unable to search for file: %v", err)
 		return nil, err
 	}
-	log.Infof("Search result: %v", searchResult)
+	//log.Infof("Search result: %v", searchResult)
 
 	if len(searchResult.Files) != 0 {
 		// If the spreadsheet exists, get it
