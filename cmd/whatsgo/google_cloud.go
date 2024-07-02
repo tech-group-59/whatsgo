@@ -166,11 +166,11 @@ func (t *tokenCheckTransport) RoundTrip(req *http.Request) (*http.Response, erro
 func isTokenExpired(token *oauth2.Token) bool {
 	// Subtract one hour from the current time
 	oneHourBefore := time.Now().Add(-time.Hour)
-	log.Infof("One hour before: %v\n", oneHourBefore)
+	//log.Infof("One hour before: %v\n", oneHourBefore)
 
 	// Check if this time is after the token's expiry time
 	isExpired := token.Expiry.Unix() < oneHourBefore.Unix()
-	log.Infof("Token expired: %v\n", isExpired)
+	//log.Infof("Token expired: %v\n", isExpired)
 	return isExpired
 }
 
