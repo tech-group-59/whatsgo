@@ -7,7 +7,7 @@ toolchain go1.22.0
 require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/mdp/qrterminal/v3 v3.0.0
-	go.mau.fi/whatsmeow v0.0.0-20240227155050-c5e8575efc35
+	go.mau.fi/whatsmeow v0.0.0-20240625083845-6acab596dd8c
 	golang.org/x/oauth2 v0.21.0
 	google.golang.org/api v0.187.0
 	google.golang.org/protobuf v1.34.2
@@ -36,7 +36,7 @@ require (
 	github.com/otiai10/gosseract/v2 v2.4.1 // indirect
 	github.com/rs/zerolog v1.32.0 // indirect
 	go.mau.fi/libsignal v0.1.0 // indirect
-	go.mau.fi/util v0.3.1-0.20240208085450-32294da153ab // indirect
+	go.mau.fi/util v0.4.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
 	go.opentelemetry.io/otel v1.24.0 // indirect

@@ -373,20 +373,6 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 				}
 			}
 		}
-	case "checkupdate":
-		resp, err := cli.CheckUpdate()
-		if err != nil {
-			log.Errorf("Failed to check for updates: %v", err)
-		} else {
-			log.Debugf("Version data: %#v", resp)
-			if resp.ParsedVersion == store.GetWAVersion() {
-				log.Infof("Client is up to date")
-			} else if store.GetWAVersion().LessThan(resp.ParsedVersion) {
-				log.Warnf("Client is outdated")
-			} else {
-				log.Infof("Client is newer than latest")
-			}
-		}
 	case "subscribepresence":
 		if len(args) < 1 {
 			log.Errorf("Usage: subscribepresence <jid>")
@@ -745,7 +731,6 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 					GroupInviteMessage: &waProto.GroupInviteMessage{
 						InviteCode:       proto.String(item.AddRequest.Code),
 						InviteExpiration: proto.Int64(item.AddRequest.Expiration.Unix()),
-						GroupJid:         proto.String(jid.String()),
 						GroupName:        proto.String("Test group"),
 						Caption:          proto.String("This is a test group"),
 					},
@@ -875,12 +860,9 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 		msg := &waProto.Message{
 			ReactionMessage: &waProto.ReactionMessage{
 				Key: &waProto.MessageKey{
-					RemoteJid: proto.String(recipient.String()),
-					FromMe:    proto.Bool(fromMe),
-					Id:        proto.String(messageID),
+					FromMe: proto.Bool(fromMe),
 				},
-				Text:              proto.String(reaction),
-				SenderTimestampMs: proto.Int64(time.Now().UnixMilli()),
+				Text: proto.String(reaction),
 			},
 		}
 		resp, err := cli.SendMessage(context.Background(), recipient, msg)
@@ -930,14 +912,11 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 			return
 		}
 		msg := &waProto.Message{ImageMessage: &waProto.ImageMessage{
-			Caption:       proto.String(strings.Join(args[2:], " ")),
-			Url:           proto.String(uploaded.URL),
-			DirectPath:    proto.String(uploaded.DirectPath),
-			MediaKey:      uploaded.MediaKey,
-			Mimetype:      proto.String(http.DetectContentType(data)),
-			FileEncSha256: uploaded.FileEncSHA256,
-			FileSha256:    uploaded.FileSHA256,
-			FileLength:    proto.Uint64(uint64(len(data))),
+			Caption:    proto.String(strings.Join(args[2:], " ")),
+			DirectPath: proto.String(uploaded.DirectPath),
+			MediaKey:   uploaded.MediaKey,
+			Mimetype:   proto.String(http.DetectContentType(data)),
+			FileLength: proto.Uint64(uint64(len(data))),
 		}}
 		resp, err := cli.SendMessage(context.Background(), recipient, msg, whatsmeow.SendRequestExtra{
 			MediaHandle: uploaded.Handle,
