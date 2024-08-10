@@ -102,7 +102,11 @@ function App() {
         fetch(`/messages?from=${moment(dateFrom).format('DD.MM.YYYY')}&to=${moment(dateTo).format('DD.MM.YYYY')}&content=${content}`)
             .then(response => response.json())
             .then(data => {
-                setMessages(data);
+                if (data === null) {
+                    setMessages([]);
+                } else {
+                    setMessages(data);
+                }
             }).finally(() => setLoading(false));
     }
 
@@ -164,7 +168,7 @@ function App() {
                                 })}
                                 </tbody>
                             </table> : <p>
-                                Press "Search" to get messages
+                                No data. Press "Search" to get messages
                             </p>}
                         </div>
                     }
