@@ -6,6 +6,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - ./config:/app/config
       - ./data:/app/data
+    ports:
+      - "8080:8080"
     logging:
       driver: "json-file"
       options:
