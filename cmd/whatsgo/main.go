@@ -139,6 +139,8 @@ func main() {
 		return
 	}
 
+	go RunServer(config, db)
+
 	c := make(chan os.Signal, 1)
 	input := make(chan string)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)

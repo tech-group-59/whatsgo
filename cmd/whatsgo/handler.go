@@ -1,6 +1,7 @@
 package main
 
 import (
+	//"encoding/json"
 	"fmt"
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/types"
@@ -8,6 +9,8 @@ import (
 	"mime"
 	"os"
 	"strings"
+	//"sync/atomic"
+	//"time"
 )
 
 func CreateHandler(fileFolder string, trackers []Tracker, config *Config) func(interface{}) {
@@ -248,22 +251,22 @@ func CreateHandler(fileFolder string, trackers []Tracker, config *Config) func(i
 			}
 		case *events.HistorySync:
 			log.Infof("Skip history sync event: %+v", evt)
-		//id := atomic.AddInt32(&historySyncID, 1)
-		//fileName := fmt.Sprintf("history-%d-%d.json", startupTime, id)
-		//file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0600)
-		//if err != nil {
-		//	log.Errorf("Failed to open file to write history sync: %v", err)
-		//	return
-		//}
-		//enc := json.NewEncoder(file)
-		//enc.SetIndent("", "  ")
-		//err = enc.Encode(evt.Data)
-		//if err != nil {
-		//	log.Errorf("Failed to write history sync: %v", err)
-		//	return
-		//}
-		//log.Infof("Wrote history sync to %s", fileName)
-		//_ = file.Close()
+			//id := atomic.AddInt32(&historySyncID, 1)
+			//fileName := fmt.Sprintf("history-%d-%d.json", startupTime, id)
+			//file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0600)
+			//if err != nil {
+			//	log.Errorf("Failed to open file to write history sync: %v", err)
+			//	return
+			//}
+			//enc := json.NewEncoder(file)
+			//enc.SetIndent("", "  ")
+			//err = enc.Encode(evt.Data)
+			//if err != nil {
+			//	log.Errorf("Failed to write history sync: %v", err)
+			//	return
+			//}
+			//log.Infof("Wrote history sync to %s", fileName)
+			//_ = file.Close()
 		case *events.AppState:
 			log.Debugf("App state event: %+v / %+v", evt.Index, evt.SyncActionValue)
 		case *events.KeepAliveTimeout:
