@@ -54,15 +54,16 @@ func (s *Server) getDBMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	sqlQuery := `
         SELECT id, sender, chat, content, timestamp, parsed_content
         FROM messages
-        WHERE date(substr(timestamp,0,11)) >= ? AND date(substr(timestamp,0,11)) <= ?`
+        WHERE date(substr(timestamp,0,11)) >= date(?) AND date(substr(timestamp,0,11)) <= date(?)`
 
 	// If a content filter is provided, add it to the query
 	var args []interface{}
-	args = append(args, dateFrom, dateTo)
+	args = append(args, dateFrom.Format("2006-01-02"), dateTo.Format("2006-01-02"))
 
 	if content != "" {
-		sqlQuery += " AND lower(content) LIKE ?"
-		args = append(args, "%"+strings.ToLower(content)+"%")
+		sqlQuery += " AND (lower(content) LIKE ? OR lower(parsed_content) LIKE ?)"
+		loweredContent := "%" + strings.ToLower(content) + "%"
+		args = append(args, loweredContent, loweredContent)
 	}
 
 	// Query messages from the DB
