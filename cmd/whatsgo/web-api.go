@@ -66,6 +66,9 @@ func (s *Server) getDBMessagesHandler(w http.ResponseWriter, r *http.Request) {
 		args = append(args, loweredContent, loweredContent)
 	}
 
+	// Order by timestamp in descending order
+	sqlQuery += " ORDER BY timestamp DESC"
+
 	// Query messages from the DB
 	messages, err := s.DB.Query(sqlQuery, args...)
 	if err != nil {

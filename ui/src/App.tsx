@@ -13,8 +13,30 @@ interface RawMessage {
     parsed_content: string;
 }
 
-// Define the type for the array of messages
 type RawMessages = RawMessage[];
+
+
+const HighlightText = ({text, highlight}: {
+    text: string,
+    highlight: string
+}) => {
+    const escapedHighlight = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const parts = text.split(new RegExp(`(${escapedHighlight})`, 'gi'));
+
+    if (!highlight) {
+        return <span>{text}</span>;
+    }
+    return (
+        <span>
+      {parts.map((part, index) => (
+          part.toLowerCase() === highlight.toLowerCase() ?
+              <mark key={index}>{part}</mark> :
+              part
+      ))}
+    </span>
+    );
+};
 
 
 const useStyles = createUseStyles({
@@ -60,7 +82,10 @@ const useStyles = createUseStyles({
     dataRow: {
         '&:hover': {
             background: 'rgba(243,243,243,0.2)',
-        }
+        },
+        '&:last-child td': {
+            'border-bottom': 'none',
+        },
     },
     td: {
         padding: '0.5rem',
@@ -82,6 +107,8 @@ function App() {
     const [chats, setChats] = useState<{ [key: string]: string }>({});
     const [messages, setMessages] = useState<RawMessages>([]);
     const [loading, setLoading] = useState(false);
+    const [justOpened, setJustOpened] = useState(true);
+    const [lastContent, setLastContent] = useState('');
 
 
     useEffect(() => {
@@ -99,6 +126,8 @@ function App() {
 
     const handleSubmit = () => {
         setLoading(true);
+        setJustOpened(false);
+        setLastContent(content);
         fetch(`/messages?from=${moment(dateFrom).format('DD.MM.YYYY')}&to=${moment(dateTo).format('DD.MM.YYYY')}&content=${content}`)
             .then(response => response.json())
             .then(data => {
@@ -162,14 +191,18 @@ function App() {
                                         <tr key={message.id} className={classes.dataRow}>
                                             <td className={classes.td}>{ts}</td>
                                             <td className={classes.td}>{chatName}</td>
-                                            <td className={classes.td}>{message.content}</td>
+                                            <td className={classes.td}>
+                                                <HighlightText text={message.content} highlight={lastContent}/>
+                                            </td>
                                         </tr>
                                     );
                                 })}
                                 </tbody>
-                            </table> : <p>
-                                No data. Press "Search" to get messages
-                            </p>}
+                            </table> : (justOpened ? <p>
+                                Press "Search" to get messages
+                            </p> : <p>
+                                No messages found
+                            </p>)}
                         </div>
                     }
                 </div>
