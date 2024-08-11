@@ -508,7 +508,7 @@ func (tracker *CloudTracker) insertRow(spreadsheet *sheets.Spreadsheet, values [
 
 	for _, row := range messageIds.Values {
 		if len(row) > 0 && row[0] == values[0] {
-			log.Infof("Message with ID %s already exists in spreadsheet %s", values[0], spreadsheet.SpreadsheetId)
+			log.Infof("WebMessage with ID %s already exists in spreadsheet %s", values[0], spreadsheet.SpreadsheetId)
 			return nil
 		}
 	}

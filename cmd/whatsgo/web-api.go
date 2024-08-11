@@ -4,14 +4,69 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
 type Server struct {
-	DB     *sql.DB
-	config *Config
+	DB        *sql.DB
+	config    *Config
+	clients   map[*websocket.Conn]bool
+	broadcast chan []byte
+	upgrader  websocket.Upgrader
+	mu        sync.Mutex
+}
+
+func (s *Server) InitWebSocket() {
+	s.clients = make(map[*websocket.Conn]bool)
+	s.broadcast = make(chan []byte)
+	s.upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			// Allow all origins
+			return true
+		},
+	}
+}
+
+// WebSocket endpoint
+func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := s.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Errorf("WebSocket upgrade error: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	s.mu.Lock()
+	s.clients[conn] = true
+	s.mu.Unlock()
+
+	for {
+		_, _, err := conn.ReadMessage()
+		if err != nil {
+			s.mu.Lock()
+			delete(s.clients, conn)
+			s.mu.Unlock()
+			break
+		}
+	}
+}
+
+// Broadcast messages to all connected clients
+func (s *Server) broadcastToClients(message []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for client := range s.clients {
+		err := client.WriteMessage(websocket.TextMessage, message)
+		if err != nil {
+			client.Close()
+			delete(s.clients, client)
+		}
+	}
 }
 
 func (s *Server) getDBChatsHandler(w http.ResponseWriter, r *http.Request) {
@@ -19,7 +74,7 @@ func (s *Server) getDBChatsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(s.config.Chats)
 }
 
-type Message struct {
+type WebMessage struct {
 	ID            string `json:"id"`
 	Sender        string `json:"sender"`
 	Chat          string `json:"chat"`
@@ -77,9 +132,9 @@ func (s *Server) getDBMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer messages.Close()
 
-	var messageList []Message
+	var messageList []WebMessage
 	for messages.Next() {
-		var message Message
+		var message WebMessage
 		if err := messages.Scan(&message.ID, &message.Sender, &message.Chat, &message.Content, &message.Timestamp, &message.ParsedContent); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to scan message: %v", err), http.StatusInternalServerError)
 			return
@@ -113,18 +168,23 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func RunServer(config *Config, db *sql.DB) {
+func CreateServer(config *Config, db *sql.DB) *Server {
 	server := &Server{
 		DB:     db,
 		config: config,
 	}
+	server.InitWebSocket() // Initialize WebSocket
+	return server
+}
 
+func RunServer(server *Server) {
 	// Create a new ServeMux (multiplexer) for your routes
 	mux := http.NewServeMux()
 
 	// Register your handlers
 	mux.HandleFunc("/chats", server.getDBChatsHandler)
 	mux.HandleFunc("/messages", server.getDBMessagesHandler)
+	mux.HandleFunc("/ws", server.handleWebSocket) // WebSocket endpoint
 
 	// Serve static files from the "./static" directory at the root path "/"
 	fs := http.FileServer(http.Dir("./static"))

@@ -125,8 +125,9 @@ func main() {
 		}()
 	}
 
+	var server = CreateServer(config, db)
 	var trackers = CreateTrackers(config, db)
-	var handler = CreateHandler(*fileFolder, trackers, config)
+	var handler = CreateHandler(*fileFolder, trackers, config, server)
 
 	// find trackers
 	dbTracker := findDBTracker(trackers)
@@ -139,7 +140,7 @@ func main() {
 		return
 	}
 
-	go RunServer(config, db)
+	go RunServer(server)
 
 	c := make(chan os.Signal, 1)
 	input := make(chan string)
@@ -251,7 +252,7 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 		}
 		messageCount := 0
 		for _, message := range messages {
-			log.Infof("Message: %+v", message)
+			log.Infof("WebMessage: %+v", message)
 			messageCount++
 		}
 		log.Infof("Found %d messages", messageCount)
@@ -277,7 +278,7 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 		}
 		log.Infof("Start processing %d messages for chat '%s' at date: %s", len(messages), args[0], date)
 		for _, message := range messages {
-			log.Infof("Message: %+v", message)
+			log.Infof("WebMessage: %+v", message)
 			cloudTracker.TrackMessage(&message)
 			messageCount++
 		}
@@ -811,7 +812,7 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 		if err != nil {
 			log.Errorf("Error sending message: %v", err)
 		} else {
-			log.Infof("Message sent (server timestamp: %s)", resp.Timestamp)
+			log.Infof("WebMessage sent (server timestamp: %s)", resp.Timestamp)
 		}
 	case "sendpoll":
 		if len(args) < 7 {
@@ -838,7 +839,7 @@ func handleCmd(cmd string, args []string, dbTracker *DBTracker, cloudTracker *Cl
 		if err != nil {
 			log.Errorf("Error sending message: %v", err)
 		} else {
-			log.Infof("Message sent (server timestamp: %s)", resp.Timestamp)
+			log.Infof("WebMessage sent (server timestamp: %s)", resp.Timestamp)
 		}
 	case "react":
 		if len(args) < 3 {

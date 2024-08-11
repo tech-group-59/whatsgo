@@ -13,7 +13,7 @@ import (
 	//"time"
 )
 
-func CreateHandler(fileFolder string, trackers []Tracker, config *Config) func(interface{}) {
+func CreateHandler(fileFolder string, trackers []Tracker, config *Config, server *Server) func(interface{}) {
 
 	//var historySyncID int32
 	//var startupTime = time.Now().Unix()
@@ -227,8 +227,8 @@ func CreateHandler(fileFolder string, trackers []Tracker, config *Config) func(i
 
 			if trackable && (text != "" || len(files) > 0) {
 				log.Infof("Tracking message from %s in chat %s", sender, chat)
-				ProcessMessage(trackers, evt.Info.ID, sender, chat, text, timestamp.String(), files, metadata)
-				log.Infof("Message text: %s", text)
+				ProcessMessage(trackers, evt.Info.ID, sender, chat, text, timestamp.String(), files, metadata, server)
+				log.Infof("WebMessage text: %s", text)
 			} else {
 				log.Infof("Ignoring message from %s in chat %s", sender, chat)
 			}

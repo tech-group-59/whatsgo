@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 )
 
@@ -52,7 +53,7 @@ func CreateTrackers(config *Config, db *sql.DB) []Tracker {
 	return trackers
 }
 
-func ProcessMessage(trackers []Tracker, messageID string, sender string, chat string, content string, timestamp string, files []string, metadata MessageMetadata) error {
+func ProcessMessage(trackers []Tracker, messageID string, sender string, chat string, content string, timestamp string, files []string, metadata MessageMetadata, server *Server) error {
 	message := TrackableMessage{
 		MessageID:     messageID,
 		Sender:        sender,
@@ -71,5 +72,21 @@ func ProcessMessage(trackers []Tracker, messageID string, sender string, chat st
 			log.Errorf("Failed to store message in tracker(%v) : %v", tracker, err)
 		}
 	}
+	//create WebMessage
+	webMsg := WebMessage{
+		ID:            message.MessageID,
+		Sender:        message.Sender,
+		Chat:          message.Chat,
+		Content:       message.Content,
+		Timestamp:     message.Timestamp,
+		ParsedContent: message.ParsedContent,
+	}
+	//convert the message to JSON
+	wsMsg, err := json.Marshal(webMsg)
+	if err != nil {
+		return err
+	}
+	//send the message to the server
+	server.broadcastToClients(wsMsg)
 	return nil
 }

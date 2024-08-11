@@ -3,6 +3,7 @@ import {createUseStyles} from 'react-jss';
 import {useEffect, useState} from "react";
 
 import moment from 'moment';
+import useWS from "./useWS.ts";
 
 interface RawMessage {
     id: string;
@@ -15,6 +16,8 @@ interface RawMessage {
 
 type RawMessages = RawMessage[];
 
+const host = '';
+// const host='http://localhost:8080';
 
 const HighlightText = ({text, highlight}: {
     text: string,
@@ -99,6 +102,8 @@ const getYesterdaysDate = () => {
     return date;
 }
 
+const notificationSound = '/notify.mp3';
+
 function App() {
     const classes = useStyles();
     const [dateFrom, setDateFrom] = useState(getYesterdaysDate());
@@ -109,10 +114,75 @@ function App() {
     const [loading, setLoading] = useState(false);
     const [justOpened, setJustOpened] = useState(true);
     const [lastContent, setLastContent] = useState('');
+    const [audioReady, setAudioReady] = useState(false);
+    const [pullNewMessages, setPullNewMessages] = useState(true);
+
+
+    const {connectWS, disconnectWS, lastMessage} = useWS({
+        url: `${host}/ws`,
+        onOpen: () => {
+            console.log('connected to device');
+        },
+        onClose: () => {
+            console.log('Disconnected from device');
+        },
+    });
 
 
     useEffect(() => {
-        fetch('/chats')
+        if (lastMessage) {
+            if (justOpened || !pullNewMessages) {
+                return;
+            }
+            const msg = JSON.parse(lastMessage) as RawMessage;
+
+            // check if lastContent is in the message
+            if (msg.content.toLowerCase().includes(lastContent.toLowerCase()) || !lastContent) {
+                // prepend the new message to the list
+                setMessages([msg, ...messages]);
+
+                if (audioReady) {
+                    const audio = new Audio(notificationSound);
+                    audio.play().catch((error) => console.error("Failed to play the sound:", error));
+                }
+
+                new Notification('New message', {
+                    body: msg.content,
+                });
+            }
+        }
+    }, [lastMessage]);
+
+    const handleUserInteraction = async () => {
+        const audio = new Audio(notificationSound);
+        try {
+            audio.volume = 0;
+            await audio.play();
+            setAudioReady(true);
+        } catch (error) {
+            console.error("Failed to play the sound:", error);
+        }
+    };
+
+    useEffect(() => {
+        // Function to handle requesting notification permission
+        const requestNotificationPermission = async () => {
+            const permission = await Notification.requestPermission();
+            console.log('Notification permission:', permission);
+        };
+
+        // Call the function to request permission
+        requestNotificationPermission();
+
+        connectWS();
+
+        return () => {
+            disconnectWS();
+        };
+    }, []);
+
+    useEffect(() => {
+        fetch(`${host}/chats`)
             .then(response => response.json())
             .then(data => {
                 const result = data.reduce((acc: any, chat: any) => {
@@ -124,11 +194,12 @@ function App() {
     }, []);
 
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        await handleUserInteraction();
         setLoading(true);
         setJustOpened(false);
         setLastContent(content);
-        fetch(`/messages?from=${moment(dateFrom).format('DD.MM.YYYY')}&to=${moment(dateTo).format('DD.MM.YYYY')}&content=${content}`)
+        fetch(`${host}/messages?from=${moment(dateFrom).format('DD.MM.YYYY')}&to=${moment(dateTo).format('DD.MM.YYYY')}&content=${content}`)
             .then(response => response.json())
             .then(data => {
                 if (data === null) {
@@ -164,6 +235,12 @@ function App() {
                         </div>
                         <button onClick={handleSubmit}>Search</button>
                     </div>
+
+                    {!justOpened && <div className={classes.inputGroupRow}>
+                        <label>Pull new messages</label>
+                        <input type="checkbox" checked={pullNewMessages}
+                               onChange={e => setPullNewMessages(e.target.checked)}/>
+                    </div>}
 
                     {loading ?
                         <div className={classes.spinnerWrap}>
