@@ -9,15 +9,14 @@ type UseWSProps = {
 
 const noop = () => {};
 
-const useWS = ({
-    url,
-    onMessage = () => {},
-    onOpen = noop,
-    onClose = noop,
-}: UseWSProps) => {
+const useWS = ({ url, onMessage = () => {}, onOpen = noop, onClose = noop }: UseWSProps) => {
     const [isConnected, setIsConnected] = useState(false);
     const [lastMessage, setLastMessage] = useState<string>('');
     const ws = useRef<WebSocket | null>(null);
+
+    const disconnectWS = () => {
+        ws.current?.close();
+    };
 
     const connectWS = () => {
         if (isConnected) return;
@@ -48,14 +47,14 @@ const useWS = ({
         };
 
         ws.current.onerror = (e) => {
-            console.log(e);
-            setIsConnected(false);
-        };
-    };
+            console.error('ws error:', e);
+            disconnectWS();
 
-    const disconnectWS = () => {
-        setIsConnected(false);
-        ws.current?.close();
+            setTimeout(() => {
+                console.log('ws reconnecting');
+                connectWS();
+            }, 3000);
+        };
     };
 
     useEffect(
