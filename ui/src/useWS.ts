@@ -40,10 +40,10 @@ const useWS = ({ url, onMessage = () => {}, onOpen = noop, onClose = noop }: Use
         };
 
         ws.current.onmessage = (event: MessageEvent) => {
-            setLastMessage(event.data);
             if (onMessage) {
                 onMessage(event);
             }
+            setLastMessage(event.data);
         };
 
         ws.current.onerror = (e) => {

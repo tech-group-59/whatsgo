@@ -117,7 +117,7 @@ function DataViewer() {
     const [content, setContent] = useState('');
     const [chats, setChats] = useState<{ [key: string]: string }>({});
     const [selectedChat, setSelectedChat] = useState('');
-    const messages = useRef<RawMessages>([]);
+    const [messages, setMessages] = useState<RawMessages>([]);
     const [lastMessageTs, setLastMessageTs] = useState('');
     const [loading, setLoading] = useState(false);
     const [justOpened, setJustOpened] = useState(true);
@@ -126,7 +126,8 @@ function DataViewer() {
     const [pullNewMessages, setPullNewMessages] = useState(true);
     const [contentGroups, setContentGroups] = useState<string[]>([]);
     const [selectedContentGroups, setSelectedContentGroups] = useState<string[]>([]);
-
+    const messageRef = useRef<string | null>(null);
+    const messagesRef = useRef<Set<string>>(new Set());
 
     const {connectWS, disconnectWS, lastMessage} = useWS({
         url: `${host}/ws`,
@@ -137,38 +138,44 @@ function DataViewer() {
             console.log('Disconnected from device');
         },
         onMessage: (event) => {
-            const message = event.data;
-            if (message) {
-                console.log(message);
-                if (justOpened || !pullNewMessages) {
-                    return;
-                }
-                const msg = JSON.parse(message) as RawMessage;
-
-                // check if lastContent is in the message
-                if (msg.content.toLowerCase().includes(lastContent.toLowerCase()) || !lastContent) {
-                    // prepend the new message to the list
-                    messages.current = [msg, ...messages.current];
-
-                    if (audioReady) {
-                        const audio = new Audio(notificationSound);
-                        audio.play().catch((error) => console.error("Failed to play the sound:", error));
-                    }
-
-                    new Notification('New message', {
-                        body: msg.content,
-                    });
-                }
-            }
+            messageRef.current = event.data;
         }
     });
 
 
     useEffect(() => {
-        console.log('useEffect');
-        setLastMessageTs(new Date().toISOString());
-        if (messages.current.length) {
-            const groups = messages.current.reduce((acc: string[], message) => {
+        if (messageRef.current) {
+            if (justOpened || !pullNewMessages) {
+                return;
+            }
+            const msg = JSON.parse(messageRef.current) as RawMessage;
+
+            if (messagesRef.current.has(msg.id)) {
+                return;
+            }
+            messagesRef.current.add(msg.id);
+
+            // check if lastContent is in the message
+            if (msg.content.toLowerCase().includes(lastContent.toLowerCase()) || !lastContent) {
+                // prepend the new message to the list
+                setMessages([msg, ...messages]);
+
+                if (audioReady) {
+                    const audio = new Audio(notificationSound);
+                    audio.play().catch((error) => console.error("Failed to play the sound:", error));
+                }
+
+                new Notification('New message', {
+                    body: msg.content,
+                });
+            }
+            messageRef.current = null;
+        }
+    }, [lastMessage]);
+
+    useEffect(() => {
+        if (messages.length) {
+            const groups = messages.reduce((acc: string[], message) => {
                 if (!message.content) {
                     return acc;
                 }
@@ -179,10 +186,9 @@ function DataViewer() {
                 return acc;
             }, []);
             setContentGroups(groups);
-            console.log('groups:', groups);
         }
 
-    }, [lastMessage]);
+    }, [messages]);
 
     const handleUserInteraction = async () => {
         const audio = new Audio(notificationSound);
@@ -234,9 +240,9 @@ function DataViewer() {
             .then(response => response.json())
             .then(data => {
                 if (data === null) {
-                    messages.current = [];
+                    setMessages([])
                 } else {
-                    messages.current = data;
+                    setMessages(data);
                 }
                 setLastMessageTs(new Date().toISOString());
             }).finally(() => setLoading(false));
@@ -244,9 +250,9 @@ function DataViewer() {
 
     const getMessages = () => {
         if (selectedChat) {
-            return messages.current.filter((message) => message.chat === selectedChat);
+            return messages.filter((message) => message.chat === selectedChat);
         }
-        return messages.current;
+        return messages;
     }
 
     const handleClose = () => {
@@ -337,7 +343,7 @@ function DataViewer() {
                         <div className={classes.spinnerWrap}>
                             <div className={classes.spinner}></div>
                         </div> : <div className={classes.dataTable}>
-                            {messages.current.length ? <table className={classes.table}>
+                            {messages.length ? <table className={classes.table}>
                                 <thead>
                                 <tr>
                                     <th>Timestamp</th>
@@ -379,7 +385,7 @@ function DataViewer() {
                                             <td className={classes.td}>{chatName}</td>
                                             <td className={classes.td}>
                                                 <div className={isSelected(message.content) ? classes.selected : ''}>
-                                                <HighlightText text={message.content} highlight={lastContent}/>
+                                                    <HighlightText text={message.content} highlight={lastContent}/>
                                                 </div>
                                             </td>
                                         </tr>
