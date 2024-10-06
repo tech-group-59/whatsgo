@@ -61,21 +61,6 @@ input[type=date] {
     transition: border-color 0.25s;
 }
 
-@media (prefers-color-scheme: light) {
-    :root {
-        color: #213547;
-        background-color: #ffffff;
-    }
-
-    a:hover {
-        color: #3498db;
-    }
-
-    button {
-        background-color: #f9f9f9;
-    }
-}
-
 @keyframes spin {
     0% {
         transform: rotate(0deg);
