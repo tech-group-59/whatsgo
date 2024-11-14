@@ -25,18 +25,46 @@ const HighlightText = ({text, highlight}: {
 }) => {
     const escapedHighlight = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    const parts = text.split(new RegExp(`(${escapedHighlight})`, 'gi'));
+    let parts = text.split(new RegExp(`(${escapedHighlight})`, 'gi'));
+
+    const coordinatePattern = /\d+\.\d+,\d+\.\d+/g;
+    const coordinates = [...text.matchAll(coordinatePattern)].map(match => match[0]);
+
 
     if (!highlight) {
-        return <span>{text}</span>;
+        parts = [text];
     }
+    const processPart = (part: string, index: number) => {
+        // check if the part includes one of coordinates
+        const foundCoordinates = coordinates.filter((coordinate) => part.includes(coordinate));
+        if (foundCoordinates.length) {
+            const coords = foundCoordinates[0].split(',');
+            // split the part by the coordinate
+            const parts = part.split(new RegExp(`(${foundCoordinates[0]})`, 'gi'));
+            return (
+                <span key={index}>
+                    {parts.map((part, index) => {
+                        if (part === foundCoordinates[0]) {
+                            return (
+                                <a key={index}
+                                   href={`https://www.google.com/maps/search/?api=1&query=${coords[0]},${coords[1]}`}
+                                   target="_blank" rel="noreferrer">{part}</a>
+                            );
+                        }
+                        return part;
+                    })}
+                </span>
+            );
+        }
+        return (
+            part.toLowerCase() === highlight.toLowerCase() ?
+                <mark key={index}>{part}</mark> :
+                part
+        );
+    };
     return (
         <span>
-      {parts.map((part, index) => (
-          part.toLowerCase() === highlight.toLowerCase() ?
-              <mark key={index}>{part}</mark> :
-              part
-      ))}
+      {parts.map(processPart)}
     </span>
     );
 };
