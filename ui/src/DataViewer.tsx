@@ -4,70 +4,26 @@ import {useEffect, useRef, useState} from "react";
 import moment from 'moment';
 import useWS from "./useWS.ts";
 import {Box, Button, Modal} from "@mui/material";
-
-interface RawMessage {
-    id: string;
-    sender: string;
-    chat: string;
-    content: string;
-    timestamp: string;
-    parsed_content: string;
-}
-
-type RawMessages = RawMessage[];
-
-const host = '';
-// const host='http://localhost:8080';
-
-const HighlightText = ({text, highlight}: {
-    text: string,
-    highlight: string
-}) => {
-    const escapedHighlight = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    let parts = text.split(new RegExp(`(${escapedHighlight})`, 'gi'));
-
-    const coordinatePattern = /\d+\.\d+,\d+\.\d+/g;
-    const coordinates = [...text.matchAll(coordinatePattern)].map(match => match[0]);
+import {RawMessage, RawMessages} from "./types";
+import {getYesterdaysDate, parseCoordinatesFromContent, parseDateTime} from "./helpers";
+import {MessageContent} from "./components/MessageContent";
+import {ParsedContent} from "./components/ParsedContent.tsx";
 
 
-    if (!highlight) {
-        parts = [text];
+let _host = ``;
+
+const {env} = import.meta;
+
+if (env && env.VITE_HOST) {
+    _host = env.VITE_HOST;
+} else {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hostFromUrl = urlParams.get('host');
+    if (hostFromUrl) {
+        _host = hostFromUrl;
     }
-    const processPart = (part: string, index: number) => {
-        // check if the part includes one of coordinates
-        const foundCoordinates = coordinates.filter((coordinate) => part.includes(coordinate));
-        if (foundCoordinates.length) {
-            const coords = foundCoordinates[0].split(',');
-            // split the part by the coordinate
-            const parts = part.split(new RegExp(`(${foundCoordinates[0]})`, 'gi'));
-            return (
-                <span key={index}>
-                    {parts.map((part, index) => {
-                        if (part === foundCoordinates[0]) {
-                            return (
-                                <a key={index}
-                                   href={`https://www.google.com/maps/search/?api=1&query=${coords[0]},${coords[1]}`}
-                                   target="_blank" rel="noreferrer">{part}</a>
-                            );
-                        }
-                        return part;
-                    })}
-                </span>
-            );
-        }
-        return (
-            part.toLowerCase() === highlight.toLowerCase() ?
-                <mark key={index}>{part}</mark> :
-                part
-        );
-    };
-    return (
-        <span>
-      {parts.map(processPart)}
-    </span>
-    );
-};
+}
+const host = _host;
 
 
 const useStyles = createUseStyles({
@@ -82,9 +38,9 @@ const useStyles = createUseStyles({
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'flex-end',
+        gap: '0.5rem',
     },
     inputGroup: {
-        padding: '0 1rem 0 0',
         display: 'flex',
         flexDirection: 'column',
     },
@@ -127,13 +83,8 @@ const useStyles = createUseStyles({
     }
 })
 
-const getYesterdaysDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() - 1);
-    return date;
-}
-
 const notificationSound = '/notify.mp3';
+
 
 function DataViewer() {
     const classes = useStyles();
@@ -156,9 +107,10 @@ function DataViewer() {
     const [selectedContentGroups, setSelectedContentGroups] = useState<string[]>([]);
     const messageRef = useRef<string | null>(null);
     const messagesRef = useRef<Set<string>>(new Set());
+    const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
 
     const {connectWS, disconnectWS, lastMessage} = useWS({
-        url: `${host}/ws`,
+        url: `ws://${host}/ws`,
         onOpen: () => {
             console.log('connected to device');
         },
@@ -247,7 +199,7 @@ function DataViewer() {
     }, []);
 
     useEffect(() => {
-        fetch(`${host}/chats`)
+        fetch(`http://${host}/chats`)
             .then(response => response.json())
             .then(data => {
                 const result = data.reduce((acc: any, chat: any) => {
@@ -264,7 +216,7 @@ function DataViewer() {
         setLoading(true);
         setJustOpened(false);
         setLastContent(content);
-        fetch(`${host}/messages?from=${moment(dateFrom).format('DD.MM.YYYY')}&to=${moment(dateTo).format('DD.MM.YYYY')}&content=${content}`)
+        fetch(`http://${host}/messages?from=${moment(dateFrom).format('DD.MM.YYYY')}&to=${moment(dateTo).format('DD.MM.YYYY')}&content=${content}`)
             .then(response => response.json())
             .then(data => {
                 if (data === null) {
@@ -274,6 +226,51 @@ function DataViewer() {
                 }
                 setLastMessageTs(new Date().toISOString());
             }).finally(() => setLoading(false));
+    }
+
+    const handleExportToClipboard = async () => {
+        // iterate over messages and get the content if the id is in selectedMessageIds to keep correct order
+        const selectedMessages = messages.filter((message) => selectedMessageIds.includes(message.id));
+
+        const content = selectedMessages.map((message) => message.content).join('\n');
+
+        await navigator.clipboard.writeText(content);
+    }
+
+    const handleSelectParsableMessages = () => {
+        const selectedIds = messages.filter((message) => {
+            return parseCoordinatesFromContent(message.content) && parseDateTime(message);
+        }).map((message) => message.id);
+        setSelectedMessageIds(selectedIds);
+    }
+
+    const handleExportToJson = async () => {
+        const selectedMessages = messages.filter((message) => selectedMessageIds.includes(message.id));
+
+        const content = selectedMessages.map((message) => {
+            const parsedDate = parseDateTime(message);
+            const parsedCoordinates = parseCoordinatesFromContent(message.content);
+            // remove Narrow No-Break Space from the content
+            const preparedContent = message.content.replace(/\u202F/g, ' ');
+            return {
+                uuid: message.id,
+                coordinates: parsedCoordinates,
+                event_at: parsedDate?.toISOString() || '',
+                note: preparedContent,
+            };
+        })
+
+        const json = JSON.stringify(content, null, 2);
+        // await navigator.clipboard.writeText(json);
+
+        // download the file
+        const blob = new Blob([json], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `messages-${(new Date()).toISOString()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     const getMessages = () => {
@@ -289,7 +286,7 @@ function DataViewer() {
 
 
     const modalStyle = {
-        position: 'absolute' as 'absolute',
+        position: 'absolute',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
@@ -359,6 +356,17 @@ function DataViewer() {
                             <input type="text" value={content} onChange={e => setContent(e.target.value)}/>
                         </div>
                         <button onClick={handleSubmit}>Search</button>
+                        {messages.length > 0 &&
+                            <button onClick={handleSelectParsableMessages}>Select parsable messages</button>}
+                        {selectedMessageIds.length > 0 &&
+                            <>
+                                <button onClick={handleExportToClipboard}>Export to
+                                    Clipboard {selectedMessageIds.length} messages
+                                </button>
+                                <button onClick={handleExportToJson}>Export to
+                                    JSON {selectedMessageIds.length} messages
+                                </button>
+                            </>}
                     </div>
 
                     {!justOpened && <div className={classes.inputGroupRow}>
@@ -374,6 +382,20 @@ function DataViewer() {
                             {messages.length ? <table className={classes.table}>
                                 <thead>
                                 <tr>
+                                    <th>
+                                        <input type="checkbox" style={{
+                                            width: '1.5rem',
+                                            height: '1.5rem',
+                                            cursor: 'pointer',
+                                        }} checked={selectedMessageIds.length === getMessages().length}
+                                               onChange={(e) => {
+                                                   if (e.target.checked) {
+                                                       setSelectedMessageIds(getMessages().map((message) => message.id));
+                                                   } else {
+                                                       setSelectedMessageIds([]);
+                                                   }
+                                               }}/>
+                                    </th>
                                     <th>Timestamp</th>
                                     <th>
                                         Chat
@@ -395,6 +417,7 @@ function DataViewer() {
                                             }}>Open filters</Button>
                                         </div>
                                     </th>
+                                    <th>Parsed data</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -409,12 +432,29 @@ function DataViewer() {
                                     }
                                     return (
                                         <tr key={message.id} className={classes.dataRow}>
+                                            <td>
+                                                <input type="checkbox" style={{
+                                                    width: '1.5rem',
+                                                    height: '1.5rem',
+                                                    cursor: 'pointer',
+                                                }} checked={
+                                                    selectedMessageIds.includes(message.id)
+                                                } onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedMessageIds([...selectedMessageIds, message.id]);
+                                                    } else {
+                                                        setSelectedMessageIds(selectedMessageIds.filter((id) => id !== message.id));
+                                                    }
+                                                }}/>
+                                            </td>
                                             <td className={classes.td}>{ts}</td>
                                             <td className={classes.td}>{chatName}</td>
                                             <td className={classes.td}>
-                                                <div className={isSelected(message.content) ? classes.selected : ''}>
-                                                    <HighlightText text={message.content} highlight={lastContent}/>
-                                                </div>
+                                                <MessageContent message={message} lastContent={lastContent}
+                                                                className={isSelected(message.content) ? classes.selected : ''}/>
+                                            </td>
+                                            <td className={classes.td}>
+                                                <ParsedContent message={message}/>
                                             </td>
                                         </tr>
                                     );
