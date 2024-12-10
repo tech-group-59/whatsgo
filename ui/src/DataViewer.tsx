@@ -1,5 +1,5 @@
 import {createUseStyles} from 'react-jss';
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 
 import moment from 'moment';
 import useWS from "./useWS.ts";
@@ -170,6 +170,11 @@ function DataViewer() {
 
     }, [messages]);
 
+    useEffect(() => {
+        // clear selectedMessageIds when selectedChat changes
+        setSelectedMessageIds([]);
+    }, [selectedChat]);
+
     const handleUserInteraction = async () => {
         const audio = new Audio(notificationSound);
         try {
@@ -210,6 +215,12 @@ function DataViewer() {
             });
     }, []);
 
+    const filteredMessages = useMemo(() => {
+        if (selectedChat) {
+            return messages.filter((message) => message.chat === selectedChat);
+        }
+        return messages;
+    }, [selectedChat, messages]);
 
     const handleSubmit = async () => {
         await handleUserInteraction();
@@ -230,7 +241,7 @@ function DataViewer() {
 
     const handleExportToClipboard = async () => {
         // iterate over messages and get the content if the id is in selectedMessageIds to keep correct order
-        const selectedMessages = messages.filter((message) => selectedMessageIds.includes(message.id));
+        const selectedMessages = filteredMessages.filter((message) => selectedMessageIds.includes(message.id));
 
         const content = selectedMessages.map((message) => message.content).join('\n');
 
@@ -238,27 +249,39 @@ function DataViewer() {
     }
 
     const handleSelectParsableMessages = () => {
-        const selectedIds = messages.filter((message) => {
+        const selectedIds = filteredMessages.filter((message) => {
             return parseCoordinatesFromContent(message.content) && parseDateTime(message);
         }).map((message) => message.id);
         setSelectedMessageIds(selectedIds);
     }
 
     const handleExportToJson = async () => {
-        const selectedMessages = messages.filter((message) => selectedMessageIds.includes(message.id));
+        const selectedMessages = filteredMessages.filter((message) => selectedMessageIds.includes(message.id));
 
-        const content = selectedMessages.map((message) => {
+        const existingContents = new Set<string>();
+
+        const content = selectedMessages.reduce((acc: {
+            uuid: string,
+            coordinates: [number, number],
+            event_at: string,
+            note: string
+        }[], message) => {
             const parsedDate = parseDateTime(message);
             const parsedCoordinates = parseCoordinatesFromContent(message.content);
             // remove Narrow No-Break Space from the content
             const preparedContent = message.content.replace(/\u202F/g, ' ');
-            return {
+            if (existingContents.has(preparedContent) || !parsedCoordinates || !parsedDate) {
+                return acc;
+            }
+            existingContents.add(preparedContent);
+            acc.push({
                 uuid: message.id,
                 coordinates: parsedCoordinates,
                 event_at: parsedDate?.toISOString() || '',
                 note: preparedContent,
-            };
-        })
+            });
+            return acc;
+        }, [])
 
         const json = JSON.stringify(content, null, 2);
         // await navigator.clipboard.writeText(json);
@@ -271,13 +294,6 @@ function DataViewer() {
         a.download = `messages-${(new Date()).toISOString()}.json`;
         a.click();
         URL.revokeObjectURL(url);
-    }
-
-    const getMessages = () => {
-        if (selectedChat) {
-            return messages.filter((message) => message.chat === selectedChat);
-        }
-        return messages;
     }
 
     const handleClose = () => {
@@ -356,16 +372,14 @@ function DataViewer() {
                             <input type="text" value={content} onChange={e => setContent(e.target.value)}/>
                         </div>
                         <button onClick={handleSubmit}>Search</button>
-                        {messages.length > 0 &&
+                        {filteredMessages.length > 0 &&
                             <button onClick={handleSelectParsableMessages}>Select parsable messages</button>}
                         {selectedMessageIds.length > 0 &&
                             <>
                                 <button onClick={handleExportToClipboard}>Export to
                                     Clipboard {selectedMessageIds.length} messages
                                 </button>
-                                <button onClick={handleExportToJson}>Export to
-                                    JSON {selectedMessageIds.length} messages
-                                </button>
+                                <button onClick={handleExportToJson}>Export to JSON</button>
                             </>}
                     </div>
 
@@ -387,10 +401,10 @@ function DataViewer() {
                                             width: '1.5rem',
                                             height: '1.5rem',
                                             cursor: 'pointer',
-                                        }} checked={selectedMessageIds.length === getMessages().length}
+                                        }} checked={selectedMessageIds.length === filteredMessages.length}
                                                onChange={(e) => {
                                                    if (e.target.checked) {
-                                                       setSelectedMessageIds(getMessages().map((message) => message.id));
+                                                       setSelectedMessageIds(filteredMessages.map((message) => message.id));
                                                    } else {
                                                        setSelectedMessageIds([]);
                                                    }
@@ -421,7 +435,7 @@ function DataViewer() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {getMessages().map((message) => {
+                                {filteredMessages.map((message) => {
                                     //parse string like `2024-08-10 15:06:22 +0300 EEST`
                                     const ts = moment(message.timestamp, 'YYYY-MM-DD HH:mm:ss Z').format('HH:mm:ss DD.MM.YYYY');
                                     let chatName;
