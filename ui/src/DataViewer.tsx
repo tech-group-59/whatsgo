@@ -260,9 +260,10 @@ function DataViewer() {
             document.body.removeChild(textArea);
             // scroll to the top
             window.scrollTo(0, 0);
-            return;
+        } else {
+            await navigator.clipboard.writeText(content);
         }
-        await navigator.clipboard.writeText(content);
+        alert('Copied to clipboard');
     }
 
     const handleSelectParsableMessages = () => {
