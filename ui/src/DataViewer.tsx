@@ -10,7 +10,7 @@ import {MessageContent} from "./components/MessageContent";
 import {ParsedContent} from "./components/ParsedContent.tsx";
 
 
-let _host = ``;
+let _host = window.location.host;
 
 const {env} = import.meta;
 
