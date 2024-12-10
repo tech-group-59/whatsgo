@@ -245,7 +245,7 @@ function DataViewer() {
 
         const content = selectedMessages
             .map((message) => message.content.replace(/\u202F/g, ' ').replace(/\xa0/g, ' '))
-            .join('\n');
+            .join('\n\n');
 
         if (!navigator.clipboard) {
             console.error('Clipboard API is not available');
