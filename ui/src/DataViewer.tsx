@@ -243,8 +243,25 @@ function DataViewer() {
         // iterate over messages and get the content if the id is in selectedMessageIds to keep correct order
         const selectedMessages = filteredMessages.filter((message) => selectedMessageIds.includes(message.id));
 
-        const content = selectedMessages.map((message) => message.content).join('\n');
+        const content = selectedMessages
+            .map((message) => message.content.replace(/\u202F/g, ' ').replace(/\xa0/g, ' '))
+            .join('\n');
 
+        if (!navigator.clipboard) {
+            console.error('Clipboard API is not available');
+            console.log('Try to use fallback');
+            // fallback for browsers that do not support clipboard API
+            const textArea = document.createElement('textarea');
+            textArea.value = content;
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            // scroll to the top
+            window.scrollTo(0, 0);
+            return;
+        }
         await navigator.clipboard.writeText(content);
     }
 
@@ -269,7 +286,7 @@ function DataViewer() {
             const parsedDate = parseDateTime(message);
             const parsedCoordinates = parseCoordinatesFromContent(message.content);
             // remove Narrow No-Break Space from the content
-            const preparedContent = message.content.replace(/\u202F/g, ' ');
+            const preparedContent = message.content.replace(/\u202F/g, ' ').replace(/\xa0/g, ' ');
             if (existingContents.has(preparedContent) || !parsedCoordinates || !parsedDate) {
                 return acc;
             }
