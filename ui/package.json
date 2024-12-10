@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build-and-update": "tsc -b && vite build && rm -rf ../static/* && cp -r dist/* ../static/",
+    "build-and-update": "tsc -b && vite build && rm -rf ../static/* && cp -r dist/* ../static/ && cd .. && git add static",
     "lint": "eslint .",
     "preview": "vite preview"
   },

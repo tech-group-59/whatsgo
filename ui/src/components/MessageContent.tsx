@@ -12,7 +12,7 @@ export const MessageContent = ({lastContent, message, className}: {
         <div className={className} style={{
             position: 'relative',
         }}>
-            <div onClick={() => {
+            {!!message.content && <div onClick={() => {
                 setIsFormatted(!isFormatted);
             }} style={{
                 position: 'absolute',
@@ -22,7 +22,7 @@ export const MessageContent = ({lastContent, message, className}: {
                 cursor: 'pointer',
                 color: 'grey',
                 userSelect: 'none',
-            }}>{isFormatted ? 'U' : 'F'}</div>
+            }}>{isFormatted ? 'U' : 'F'}</div>}
             {!isFormatted ? <div>
                     <HighlightText text={message.content} highlight={lastContent}/>
                 </div> :
