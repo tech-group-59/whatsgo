@@ -104,7 +104,9 @@ function DataViewer() {
     const [audioReady, setAudioReady] = useState(false);
     const [pullNewMessages, setPullNewMessages] = useState(true);
     const [contentGroups, setContentGroups] = useState<string[]>([]);
-    const [selectedContentGroups, setSelectedContentGroups] = useState<string[]>([]);
+    const storedContentGroupsJSON = localStorage.getItem('selectedContentGroups');
+    const storedContentGroups = storedContentGroupsJSON ? JSON.parse(storedContentGroupsJSON) : [];
+    const [selectedContentGroups, setSelectedContentGroups] = useState<string[]>(storedContentGroups);
     const messageRef = useRef<string | null>(null);
     const messagesRef = useRef<Set<string>>(new Set());
     const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
@@ -121,6 +123,10 @@ function DataViewer() {
             messageRef.current = event.data;
         }
     });
+
+    useEffect(() => {
+        localStorage.setItem('selectedContentGroups', JSON.stringify(selectedContentGroups));
+    }, [selectedContentGroups]);
 
 
     useEffect(() => {
