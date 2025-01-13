@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"time"
 )
 
@@ -30,13 +29,13 @@ type Tracker interface {
 
 func CreateTrackers(config *Config, db *sql.DB) []Tracker {
 	var trackers []Tracker
-	if config.OCR.Enabled {
-		trackers = append(trackers, &OCRTracker{})
-	}
 
 	trackers = append(trackers, &DBTracker{db: db})
 	if config.CSV.Enabled {
 		trackers = append(trackers, &CSVTracker{})
+	}
+	if config.Webhook.Enabled {
+		trackers = append(trackers, &WebhookTracker{})
 	}
 	if config.GoogleCloud.Enabled {
 		trackers = append(trackers, &CloudTracker{})
@@ -65,6 +64,8 @@ func ProcessMessage(trackers []Tracker, messageID string, sender string, chat st
 		Metadata:      metadata,
 	}
 
+	server.broadcastToClients(message)
+
 	for _, tracker := range trackers {
 		log.Debugf("Processing message with tracker: %v", tracker)
 		err := tracker.TrackMessage(&message)
@@ -72,21 +73,5 @@ func ProcessMessage(trackers []Tracker, messageID string, sender string, chat st
 			log.Errorf("Failed to store message in tracker(%v) : %v", tracker, err)
 		}
 	}
-	//create WebMessage
-	webMsg := WebMessage{
-		ID:            message.MessageID,
-		Sender:        message.Sender,
-		Chat:          message.Chat,
-		Content:       message.Content,
-		Timestamp:     message.Timestamp,
-		ParsedContent: message.ParsedContent,
-	}
-	//convert the message to JSON
-	wsMsg, err := json.Marshal(webMsg)
-	if err != nil {
-		return err
-	}
-	//send the message to the server
-	server.broadcastToClients(wsMsg)
 	return nil
 }

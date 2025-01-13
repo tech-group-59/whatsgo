@@ -26,6 +26,11 @@ type OCRConfig struct {
 	Enabled bool `yaml:"enabled"`
 }
 
+type WebhookConfig struct {
+	Enabled bool     `yaml:"enabled"`
+	URLs    []string `yaml:"urls"`
+}
+
 type Chat struct {
 	ID    string `yaml:"id"`
 	Alias string `yaml:"alias,omitempty"`
@@ -38,6 +43,7 @@ type Config struct {
 	CSV             CSVConfig         `yaml:"csv"`
 	GoogleCloud     GoogleCloudConfig `yaml:"google_cloud"`
 	OCR             OCRConfig         `yaml:"ocr"`
+	Webhook         WebhookConfig     `yaml:"webhook"`
 }
 
 func LoadConfig(file string) (*Config, error) {

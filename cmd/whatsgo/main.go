@@ -21,6 +21,7 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
 	"google.golang.org/protobuf/proto"
+
 	"net/http"
 	"os"
 	"os/signal"
@@ -36,6 +37,7 @@ var log waLog.Logger
 
 var logLevel = "INFO"
 var debugLogs = flag.Bool("debug", false, "Enable debug logs?")
+var skipHandler = flag.Bool("skipHandler", false, "Skip handler?")
 var configPath = flag.String("config", "config.yaml", "Path to config file")
 var detached = flag.Bool("detached", false, "Run in detached mode?")
 var requestFullSync = flag.Bool("request-full-sync", false, "Request full (1 year) history sync when logging in?")
@@ -126,6 +128,7 @@ func main() {
 	}
 
 	var server = CreateServer(config, db)
+	go RunServer(server)
 	var trackers = CreateTrackers(config, db)
 	var handler = CreateHandler(*fileFolder, trackers, config, server)
 
@@ -133,14 +136,14 @@ func main() {
 	dbTracker := findDBTracker(trackers)
 	cloudTracker := findCloudTracker(trackers)
 
-	cli.AddEventHandler(handler)
+	if !*skipHandler {
+		cli.AddEventHandler(handler)
+	}
 	err = cli.Connect()
 	if err != nil {
 		log.Errorf("Failed to connect: %v", err)
 		return
 	}
-
-	go RunServer(server)
 
 	c := make(chan os.Signal, 1)
 	input := make(chan string)

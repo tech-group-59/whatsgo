@@ -12,12 +12,13 @@ import (
 )
 
 type Server struct {
-	DB        *sql.DB
-	config    *Config
-	clients   map[*websocket.Conn]bool
-	broadcast chan []byte
-	upgrader  websocket.Upgrader
-	mu        sync.Mutex
+	DB              *sql.DB
+	config          *Config
+	fileStoragePath string
+	clients         map[*websocket.Conn]bool
+	broadcast       chan []byte
+	upgrader        websocket.Upgrader
+	mu              sync.Mutex
 }
 
 func (s *Server) InitWebSocket() {
@@ -56,12 +57,32 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 // Broadcast messages to all connected clients
-func (s *Server) broadcastToClients(message []byte) {
+func (s *Server) broadcastToClients(message TrackableMessage) {
+	//create WebMessage
+	webMsg := WebMessage{
+		ID:        message.MessageID,
+		Sender:    message.Sender,
+		Chat:      message.Chat,
+		Content:   message.Content,
+		Timestamp: message.Timestamp,
+		Filename:  nil,
+	}
+	if len(message.Files) > 0 {
+		filename := strings.TrimPrefix(message.Files[0], s.fileStoragePath)
+		webMsg.Filename = &filename
+	}
+
+	//convert the message to JSON
+	wsMsg, err := json.Marshal(webMsg)
+	if err != nil {
+		return // Ignore messages that can't be marshalled
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for client := range s.clients {
-		err := client.WriteMessage(websocket.TextMessage, message)
+		err := client.WriteMessage(websocket.TextMessage, wsMsg)
 		if err != nil {
 			client.Close()
 			delete(s.clients, client)
@@ -75,12 +96,18 @@ func (s *Server) getDBChatsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type WebMessage struct {
-	ID            string `json:"id"`
-	Sender        string `json:"sender"`
-	Chat          string `json:"chat"`
-	Content       string `json:"content"`
-	Timestamp     string `json:"timestamp"`
-	ParsedContent string `json:"parsed_content"`
+	ID        string  `json:"id"`
+	Sender    string  `json:"sender"`
+	Chat      string  `json:"chat"`
+	Content   string  `json:"content"`
+	Timestamp string  `json:"timestamp"`
+	Filename  *string `json:"filename"`
+}
+
+func removeFilePrefixFromWebMessage(message *WebMessage, prefix string) {
+	if message.Filename != nil {
+		*message.Filename = strings.TrimPrefix(*message.Filename, prefix)
+	}
 }
 
 func (s *Server) getDBMessagesHandler(w http.ResponseWriter, r *http.Request) {
@@ -107,8 +134,9 @@ func (s *Server) getDBMessagesHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare the base SQL query
 	sqlQuery := `
-        SELECT id, sender, chat, content, timestamp, parsed_content
+        SELECT messages.id, sender, chat, content, timestamp, path
         FROM messages
+        LEFT JOIN files ON messages.id = files.message_id
         WHERE date(substr(timestamp,0,11)) >= date(?) AND date(substr(timestamp,0,11)) <= date(?)`
 
 	// If a content filter is provided, add it to the query
@@ -116,9 +144,9 @@ func (s *Server) getDBMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	args = append(args, dateFrom.Format("2006-01-02"), dateTo.Format("2006-01-02"))
 
 	if content != "" {
-		sqlQuery += " AND (lower(content) LIKE ? OR lower(parsed_content) LIKE ?)"
+		sqlQuery += " AND (content LIKE ? OR lower(content) LIKE ?)"
 		loweredContent := "%" + strings.ToLower(content) + "%"
-		args = append(args, loweredContent, loweredContent)
+		args = append(args, "%"+content+"%", loweredContent)
 	}
 
 	// Order by timestamp in descending order
@@ -135,10 +163,11 @@ func (s *Server) getDBMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	var messageList []WebMessage
 	for messages.Next() {
 		var message WebMessage
-		if err := messages.Scan(&message.ID, &message.Sender, &message.Chat, &message.Content, &message.Timestamp, &message.ParsedContent); err != nil {
+		if err := messages.Scan(&message.ID, &message.Sender, &message.Chat, &message.Content, &message.Timestamp, &message.Filename); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to scan message: %v", err), http.StatusInternalServerError)
 			return
 		}
+		removeFilePrefixFromWebMessage(&message, s.fileStoragePath)
 		messageList = append(messageList, message)
 	}
 
@@ -170,8 +199,9 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 
 func CreateServer(config *Config, db *sql.DB) *Server {
 	server := &Server{
-		DB:     db,
-		config: config,
+		DB:              db,
+		config:          config,
+		fileStoragePath: config.FileStoragePath,
 	}
 	server.InitWebSocket() // Initialize WebSocket
 	return server
@@ -185,6 +215,10 @@ func RunServer(server *Server) {
 	mux.HandleFunc("/chats", server.getDBChatsHandler)
 	mux.HandleFunc("/messages", server.getDBMessagesHandler)
 	mux.HandleFunc("/ws", server.handleWebSocket) // WebSocket endpoint
+
+	// Serve static files from the "data" directory at the "/files" path
+	fsData := http.StripPrefix("/files/", http.FileServer(http.Dir(server.fileStoragePath)))
+	mux.Handle("/files/", fsData)
 
 	// Serve static files from the "./static" directory at the root path "/"
 	fs := http.FileServer(http.Dir("./static"))

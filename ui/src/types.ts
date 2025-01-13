@@ -4,7 +4,7 @@ export interface RawMessage {
     chat: string;
     content: string;
     timestamp: string;
-    parsed_content: string;
+    filename: string | null;
 }
 
 export type RawMessages = RawMessage[];
