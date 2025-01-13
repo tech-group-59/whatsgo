@@ -56,3 +56,11 @@ token.json
 
 # source of UI
 ui
+venv
+.venv
+*.db
+*.sqlite3
+*.sqlite
+*.sql
+*.zip
+reports/*

@@ -456,7 +456,15 @@ func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string, folderId string
 
 }
 
+// spreadSheets cache
+var spreadSheetsCache = make(map[string]*sheets.Spreadsheet)
+
 func (tracker *CloudTracker) tryGetOrCreateSpreadsheet(chat string, folderId string) (*sheets.Spreadsheet, error) {
+	// Check if the spreadsheet is already in the cache
+	cacheKey := fmt.Sprintf("%s-%s", chat, folderId)
+	if spreadsheet, ok := spreadSheetsCache[cacheKey]; ok {
+		return spreadsheet, nil
+	}
 
 	// Check if a spreadsheet exists for the chat inside the specified folder
 	searchResult, err := tracker.driveService.Files.List().Q(fmt.Sprintf("name='%s' and '%s' in parents", chat, folderId)).Do()
@@ -474,6 +482,8 @@ func (tracker *CloudTracker) tryGetOrCreateSpreadsheet(chat string, folderId str
 			return nil, err
 		}
 		log.Infof("Found existing spreadsheet for chat %s", chat)
+		// Cache the spreadsheet
+		spreadSheetsCache[cacheKey] = spreadsheet
 		return spreadsheet, nil
 	}
 	log.Infof("Creating new spreadsheet for chat %s", chat)
@@ -494,6 +504,9 @@ func (tracker *CloudTracker) tryGetOrCreateSpreadsheet(chat string, folderId str
 		log.Errorf("Unable to move spreadsheet to folder: %v", err)
 		return nil, err
 	}
+
+	// Cache the spreadsheet
+	spreadSheetsCache[cacheKey] = spreadsheet
 
 	return spreadsheet, nil
 }
