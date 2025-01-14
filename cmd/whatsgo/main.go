@@ -37,7 +37,8 @@ var log waLog.Logger
 
 var logLevel = "INFO"
 var debugLogs = flag.Bool("debug", false, "Enable debug logs?")
-var skipHandler = flag.Bool("skipHandler", false, "Skip handler?")
+var clientless = flag.Bool("clientless", false, "Skip client initialization")
+var serverless = flag.Bool("serverless", false, "Skip server initialization")
 var configPath = flag.String("config", "config.yaml", "Path to config file")
 var detached = flag.Bool("detached", false, "Run in detached mode?")
 var requestFullSync = flag.Bool("request-full-sync", false, "Request full (1 year) history sync when logging in?")
@@ -91,44 +92,10 @@ func main() {
 		return
 	}
 
-	cli = whatsmeow.NewClient(device, waLog.Stdout("Client", logLevel, true))
-	var isWaitingForPair atomic.Bool
-	cli.PrePairCallback = func(jid types.JID, platform, businessName string) bool {
-		isWaitingForPair.Store(true)
-		defer isWaitingForPair.Store(false)
-		log.Infof("Pairing %s (platform: %q, business name: %q). Type r within 3 seconds to reject pair", jid, platform, businessName)
-		select {
-		case reject := <-pairRejectChan:
-			if reject {
-				log.Infof("Rejecting pair")
-				return false
-			}
-		case <-time.After(3 * time.Second):
-		}
-		log.Infof("Accepting pair")
-		return true
-	}
-
-	ch, err := cli.GetQRChannel(context.Background())
-	if err != nil {
-		// This error means that we're already logged in, so ignore it.
-		if !errors.Is(err, whatsmeow.ErrQRStoreContainsID) {
-			log.Errorf("Failed to get QR channel: %v", err)
-		}
-	} else {
-		go func() {
-			for evt := range ch {
-				if evt.Event == "code" {
-					qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-				} else {
-					log.Infof("QR channel result: %s", evt.Event)
-				}
-			}
-		}()
-	}
-
 	var server = CreateServer(config, db)
-	go RunServer(server)
+	if !*serverless {
+		go RunServer(server)
+	}
 	var trackers = CreateTrackers(config, db)
 	var handler = CreateHandler(*fileFolder, trackers, config, server)
 
@@ -136,13 +103,49 @@ func main() {
 	dbTracker := findDBTracker(trackers)
 	cloudTracker := findCloudTracker(trackers)
 
-	if !*skipHandler {
+	var isWaitingForPair atomic.Bool
+	if !*clientless {
+		cli = whatsmeow.NewClient(device, waLog.Stdout("Client", logLevel, true))
+		cli.PrePairCallback = func(jid types.JID, platform, businessName string) bool {
+			isWaitingForPair.Store(true)
+			defer isWaitingForPair.Store(false)
+			log.Infof("Pairing %s (platform: %q, business name: %q). Type r within 3 seconds to reject pair", jid, platform, businessName)
+			select {
+			case reject := <-pairRejectChan:
+				if reject {
+					log.Infof("Rejecting pair")
+					return false
+				}
+			case <-time.After(3 * time.Second):
+			}
+			log.Infof("Accepting pair")
+			return true
+		}
+
+		ch, err := cli.GetQRChannel(context.Background())
+		if err != nil {
+			// This error means that we're already logged in, so ignore it.
+			if !errors.Is(err, whatsmeow.ErrQRStoreContainsID) {
+				log.Errorf("Failed to get QR channel: %v", err)
+			}
+		} else {
+			go func() {
+				for evt := range ch {
+					if evt.Event == "code" {
+						qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+					} else {
+						log.Infof("QR channel result: %s", evt.Event)
+					}
+				}
+			}()
+		}
+
 		cli.AddEventHandler(handler)
-	}
-	err = cli.Connect()
-	if err != nil {
-		log.Errorf("Failed to connect: %v", err)
-		return
+		err = cli.Connect()
+		if err != nil {
+			log.Errorf("Failed to connect: %v", err)
+			return
+		}
 	}
 
 	c := make(chan os.Signal, 1)
