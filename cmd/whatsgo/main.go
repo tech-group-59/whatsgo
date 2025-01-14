@@ -165,7 +165,9 @@ func main() {
 		select {
 		case <-c:
 			log.Infof("Interrupt received, exiting")
-			cli.Disconnect()
+			if cli != nil && !*clientless {
+				cli.Disconnect()
+			}
 			return
 		case cmd := <-input:
 			if len(cmd) == 0 {
@@ -173,7 +175,9 @@ func main() {
 					continue
 				}
 				log.Infof("Stdin closed, exiting")
-				cli.Disconnect()
+				if cli != nil && !*clientless {
+					cli.Disconnect()
+				}
 				return
 			}
 			if isWaitingForPair.Load() {
