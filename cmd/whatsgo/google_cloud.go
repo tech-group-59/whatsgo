@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
@@ -16,6 +17,9 @@ import (
 	"strings"
 	"time"
 )
+
+var spreadSheetsCache = expirable.NewLRU[string, *sheets.Spreadsheet](20, nil, time.Minute*30)
+var messageIdsCache = expirable.NewLRU[string, [][]interface{}](20, nil, time.Minute*30)
 
 // https://developers.google.com/sheets/api/quickstart/go
 
@@ -469,13 +473,10 @@ func (tracker *CloudTracker) getOrCreateSpreadsheet(chat string, folderId string
 
 }
 
-// spreadSheets cache
-var spreadSheetsCache = make(map[string]*sheets.Spreadsheet)
-
 func (tracker *CloudTracker) tryGetOrCreateSpreadsheet(chat string, folderId string) (*sheets.Spreadsheet, error) {
 	// Check if the spreadsheet is already in the cache
 	cacheKey := fmt.Sprintf("%s-%s", chat, folderId)
-	if spreadsheet, ok := spreadSheetsCache[cacheKey]; ok {
+	if spreadsheet, ok := spreadSheetsCache.Get(cacheKey); ok {
 		return spreadsheet, nil
 	}
 
@@ -496,7 +497,7 @@ func (tracker *CloudTracker) tryGetOrCreateSpreadsheet(chat string, folderId str
 		}
 		log.Infof("Found existing spreadsheet for chat %s", chat)
 		// Cache the spreadsheet
-		spreadSheetsCache[cacheKey] = spreadsheet
+		spreadSheetsCache.Add(cacheKey, spreadsheet)
 		return spreadsheet, nil
 	}
 	log.Infof("Creating new spreadsheet for chat %s", chat)
@@ -519,20 +520,32 @@ func (tracker *CloudTracker) tryGetOrCreateSpreadsheet(chat string, folderId str
 	}
 
 	// Cache the spreadsheet
-	spreadSheetsCache[cacheKey] = spreadsheet
+	spreadSheetsCache.Add(cacheKey, spreadsheet)
 
 	return spreadsheet, nil
 }
 
 func (tracker *CloudTracker) insertRow(spreadsheet *sheets.Spreadsheet, values []interface{}) error {
-	// Check if message with the same ID already exists in the spreadsheet
-	messageIds, err := tracker.sheetsService.Spreadsheets.Values.Get(spreadsheet.SpreadsheetId, "A:A").Do()
-	if err != nil {
-		log.Errorf("Unable to get values from spreadsheet: %v", err)
-		return err
+	cacheKey := spreadsheet.SpreadsheetId
+
+	// Check if message IDs are already in the cache
+	var messageIds [][]interface{}
+	if cachedMessageIds, ok := messageIdsCache.Get(cacheKey); ok {
+		messageIds = cachedMessageIds
+	} else {
+		// Get message IDs from the spreadsheet
+		messageIdsResponse, err := tracker.sheetsService.Spreadsheets.Values.Get(spreadsheet.SpreadsheetId, "A:A").Do()
+		if err != nil {
+			log.Errorf("Unable to get values from spreadsheet: %v", err)
+			return err
+		}
+		messageIds = messageIdsResponse.Values
+		// Cache the message IDs
+		messageIdsCache.Add(cacheKey, messageIds)
 	}
 
-	for _, row := range messageIds.Values {
+	// Check if message with the same ID already exists in the spreadsheet
+	for _, row := range messageIds {
 		if len(row) > 0 && row[0] == values[0] {
 			log.Infof("WebMessage with ID %s already exists in spreadsheet %s", values[0], spreadsheet.SpreadsheetId)
 			return nil
@@ -540,7 +553,7 @@ func (tracker *CloudTracker) insertRow(spreadsheet *sheets.Spreadsheet, values [
 	}
 
 	// Insert a new row at the top of the document
-	_, err = tracker.sheetsService.Spreadsheets.Values.Append(spreadsheet.SpreadsheetId, "A1", &sheets.ValueRange{
+	_, err := tracker.sheetsService.Spreadsheets.Values.Append(spreadsheet.SpreadsheetId, "A1", &sheets.ValueRange{
 		Values: [][]interface{}{values},
 	}).ValueInputOption("USER_ENTERED").InsertDataOption("INSERT_ROWS").Do()
 	if err != nil {
@@ -548,6 +561,10 @@ func (tracker *CloudTracker) insertRow(spreadsheet *sheets.Spreadsheet, values [
 		return err
 	}
 	log.Infof("Inserted row into spreadsheet %s", spreadsheet.SpreadsheetId)
+
+	// Update the cache with the new message ID
+	messageIds = append([][]interface{}{{values[0]}}, messageIds...)
+	messageIdsCache.Add(cacheKey, messageIds)
 
 	return nil
 }

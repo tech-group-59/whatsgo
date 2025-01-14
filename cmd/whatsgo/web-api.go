@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const FileWebPathPrefix = "/files"
+
 type Server struct {
 	DB              *sql.DB
 	config          *Config
@@ -68,7 +70,7 @@ func (s *Server) broadcastToClients(message TrackableMessage) {
 		Filename:  nil,
 	}
 	if len(message.Files) > 0 {
-		filename := strings.TrimPrefix(message.Files[0], s.fileStoragePath)
+		filename := FileWebPathPrefix + strings.TrimPrefix(message.Files[0], s.fileStoragePath)
 		webMsg.Filename = &filename
 	}
 
@@ -106,7 +108,7 @@ type WebMessage struct {
 
 func removeFilePrefixFromWebMessage(message *WebMessage, prefix string) {
 	if message.Filename != nil {
-		*message.Filename = strings.TrimPrefix(*message.Filename, prefix)
+		*message.Filename = FileWebPathPrefix + strings.TrimPrefix(*message.Filename, prefix)
 	}
 }
 
@@ -216,9 +218,9 @@ func RunServer(server *Server) {
 	mux.HandleFunc("/messages", server.getDBMessagesHandler)
 	mux.HandleFunc("/ws", server.handleWebSocket) // WebSocket endpoint
 
-	// Serve static files from the "data" directory at the "/files" path
-	fsData := http.StripPrefix("/files/", http.FileServer(http.Dir(server.fileStoragePath)))
-	mux.Handle("/files/", fsData)
+	// Serve static files from the "data" directory at the "files" path
+	fsData := http.StripPrefix(FileWebPathPrefix+"/", http.FileServer(http.Dir(server.fileStoragePath)))
+	mux.Handle(FileWebPathPrefix+"/", fsData)
 
 	// Serve static files from the "./static" directory at the root path "/"
 	fs := http.FileServer(http.Dir("./static"))

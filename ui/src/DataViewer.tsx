@@ -490,7 +490,7 @@ function DataViewer() {
                                             <td className={classes.td}>
                                                 <MessageContent message={message} lastContent={lastContent}
                                                                 className={isSelected(message.content) ? classes.selected : ''}/>
-                                                {message.filename && <a href={`/files/${message.filename}`}
+                                                {message.filename && <a href={message.filename}
                                                                         target="_blank" rel="noreferrer">Download</a>}
                                             </td>
                                             <td className={classes.td}>

@@ -6,6 +6,7 @@ toolchain go1.22.0
 
 require (
 	github.com/gorilla/websocket v1.5.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/mdp/qrterminal/v3 v3.0.0
 	go.mau.fi/whatsmeow v0.0.0-20240625083845-6acab596dd8c
