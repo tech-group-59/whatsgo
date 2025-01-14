@@ -372,9 +372,22 @@ func (tracker *CloudTracker) TrackMessage(message *TrackableMessage) error {
 		message.Content,
 		message.ParsedContent,
 	}, fileLinksInterface...)
-	err = tracker.insertRow(spreadsheet, values)
-	if err != nil {
-		return err
+
+	retryAttempts := 5
+	delay := time.Second * 10
+
+	for attempt := 1; attempt <= retryAttempts; attempt++ {
+		err = tracker.insertRow(spreadsheet, values)
+		if err == nil {
+			break
+		}
+		if attempt < retryAttempts {
+			log.Warnf("Attempt %d failed: %v. Retrying after %s...", attempt, err, delay)
+			time.Sleep(delay)
+		} else {
+			log.Errorf("All %d attempts failed: %v", retryAttempts, err)
+			return err
+		}
 	}
 
 	return nil
