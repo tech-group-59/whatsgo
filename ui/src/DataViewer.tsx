@@ -4,8 +4,8 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import moment from 'moment';
 import useWS from "./useWS.ts";
 import {Box, Button, Modal} from "@mui/material";
-import {RawMessage, RawMessages} from "./types";
-import {getYesterdaysDate, parseCoordinatesFromContent, parseDateTime} from "./helpers";
+import {Point, RawMessage, RawMessages} from "./types";
+import {getYesterdaysDate, isPointInPolygon, parseCoordinatesFromContent, parseDateTime} from "./helpers";
 import {MessageContent} from "./components/MessageContent";
 import {ParsedContent} from "./components/ParsedContent.tsx";
 
@@ -339,12 +339,33 @@ function DataViewer() {
         p: 4,
     };
 
+    //37.80130469219802,48.02899013680949
+    const examplePolygon: Point[] = [
+        { x: 37.538, y: 48.163 },
+        { x: 37.554, y: 47.828 },
+        { x: 38.131, y: 47.788 },
+        { x: 38.048, y: 48.132 },
+        { x: 37.538, y: 48.163 } // Closed polygon
+    ];
+
     const isSelected = (content: string) => {
-        if (!selectedContentGroups.length || !content) {
-            return false;
+        // by coordinates
+        const ll = parseCoordinatesFromContent(content);
+        if (ll != null) {
+            const [ lat, lon ] = ll;
+            const point = { x: lon, y: lat };
+            console.log('Point:', point);
+            if (isPointInPolygon(point, examplePolygon)) {
+                return true;
+            }
         }
-        const firstLine = (content.split('\n')[0]).trim();
-        return selectedContentGroups.includes(firstLine);
+        // by group
+        if (selectedContentGroups.length && content) {
+            const firstLine = (content.split('\n')[0]).trim();
+            return selectedContentGroups.includes(firstLine);
+        }
+        // default
+        return false;
     }
 
     return (

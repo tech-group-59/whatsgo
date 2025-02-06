@@ -8,3 +8,5 @@ export interface RawMessage {
 }
 
 export type RawMessages = RawMessage[];
+
+export type Point = { x: number; y: number };

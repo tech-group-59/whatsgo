@@ -1,4 +1,4 @@
-import {RawMessage} from "./types.ts";
+import {Point, RawMessage} from "./types.ts";
 import moment from "moment";
 
 export const parseDateTime = (message: RawMessage): Date | null => {
@@ -37,6 +37,22 @@ export const getYesterdaysDate = () => {
     return date;
 }
 
+export const isPointInPolygon = (point: Point, polygon: Point[]): boolean => {
+    let inside = false;
+    const { x, y } = point;
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const { x: xi, y: yi } = polygon[i];
+        const { x: xj, y: yj } = polygon[j];
+
+        const intersect = yi > y !== yj > y &&
+            x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+
+        if (intersect) inside = !inside;
+    }
+
+    return inside;
+}
 
 export const parseCoordinatesFromContent = (content: string): [number, number] | null => {
     const removeNewLines = content.replace(/\n/g, ' ');
