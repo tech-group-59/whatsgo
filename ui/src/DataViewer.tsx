@@ -433,6 +433,7 @@ function DataViewer() {
 
         return (
             <div>
+                <pre className="text-left">{JSON.stringify(mapLayers, null, 2)}</pre>
                 <MapContainer className={classes2.mapContainer} center={[51.505, -0.09]} zoom={13} scrollWheelZoom={false}>
                     <FeatureGroup>
                         <EditControl
