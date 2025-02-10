@@ -8,7 +8,12 @@ import {Point, RawMessage, RawMessages} from "./types";
 import {getYesterdaysDate, isPointInPolygon, parseCoordinatesFromContent, parseDateTime} from "./helpers";
 import {MessageContent} from "./components/MessageContent";
 import {ParsedContent} from "./components/ParsedContent.tsx";
+import { MapContainer, TileLayer, FeatureGroup } from "react-leaflet";
+import { EditControl } from "react-leaflet-draw";
+import { LatLngLiteral } from "leaflet";
 
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
 
 let _host = window.location.host;
 
@@ -354,7 +359,6 @@ function DataViewer() {
         if (ll != null) {
             const [ lat, lon ] = ll;
             const point = { x: lon, y: lat };
-            console.log('Point:', point);
             if (isPointInPolygon(point, examplePolygon)) {
                 return true;
             }
@@ -368,9 +372,98 @@ function DataViewer() {
         return false;
     }
 
+    const useStyles2 = createUseStyles({
+        mapContainer: {
+            width: '100%', // Set the width of the map container
+            height: '500px', // Set the height of the map container
+        },
+    });
+
+    type MapLayer = {
+      id: number;
+      latlngs: LatLngLiteral[];
+    };
+
+    const PolygonMap2 = () => {
+        const classes2 = useStyles2();
+
+        const [mapLayers, setMapLayers] = useState<MapLayer[]>([]);
+
+        const _onCreate = (e: any) => {
+            console.log(e);
+
+            const { layerType, layer } = e;
+            if (layerType === "polygon") {
+                const { _leaflet_id } = layer;
+
+                setMapLayers((layers) => [
+                    ...layers,
+                    { id: _leaflet_id, latlngs: layer.getLatLngs()[0] },
+                ]);
+            }
+        };
+
+        const _onEdited = (e: any) => {
+            console.log(e);
+            const {
+                layers: { _layers },
+            } = e;
+
+            Object.values(_layers).forEach(({ _leaflet_id, editing }: any) => {
+                setMapLayers((layers) =>
+                    layers.map((l) =>
+                        l.id === _leaflet_id
+                            ? { ...l, latlngs: editing.latlngs[0] }
+                            : l
+                    )
+                );
+            });
+        };
+
+        const _onDeleted = (e: any) => {
+            console.log(e);
+            const {
+                layers: { _layers },
+            } = e;
+
+            Object.values(_layers).forEach(({ _leaflet_id }: any) => {
+                setMapLayers((layers) => layers.filter((l) => l.id !== _leaflet_id));
+            });
+        };
+
+        return (
+            <div>
+                <MapContainer className={classes2.mapContainer} center={[51.505, -0.09]} zoom={13} scrollWheelZoom={false}>
+                    <FeatureGroup>
+                        <EditControl
+                            position="topright"
+                            onCreated={_onCreate}
+                            onEdited={_onEdited}
+                            onDeleted={_onDeleted}
+                            draw={{
+                                rectangle: false,
+                                polyline: false,
+                                circle: false,
+                                circlemarker: false,
+                                marker: false,
+                            }}
+                        />
+                    </FeatureGroup>
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                </MapContainer>
+            </div>
+        )
+    };
+
     return (
         <div key={lastMessageTs}>
             <p>{lastMessageTs}</p>
+
+            <PolygonMap2/>
+
             <Modal
                 open={open}
                 onClose={handleClose}
