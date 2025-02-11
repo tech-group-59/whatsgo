@@ -26,7 +26,6 @@ if (env && env.VITE_HOST) {
 }
 const host = _host;
 
-
 const useStyles = createUseStyles({
     wrap: {
         display: 'flex',
@@ -93,7 +92,6 @@ const useStyles = createUseStyles({
 
 const notificationSound = '/notify.mp3';
 
-
 function DataViewer() {
     const classes = useStyles();
 
@@ -122,6 +120,7 @@ function DataViewer() {
         const storedPolygons = localStorage.getItem('polygons');
         return storedPolygons ? JSON.parse(storedPolygons) : [];
     });
+    const [markers, setMarkers] = useState<boolean>(false);
 
     const {connectWS, disconnectWS, lastMessage} = useWS({
         url: `ws://${host}/ws`,
@@ -188,7 +187,6 @@ function DataViewer() {
             }, []);
             setContentGroups(groups);
         }
-
     }, [messages]);
 
     useEffect(() => {
@@ -391,7 +389,6 @@ function DataViewer() {
         return `${geo ? classes.selectedByGeo : ''} ${group ? classes.selectedByGroup : ''}`;
     }
 
-
     return (
         <div key={lastMessageTs}>
             <Modal
@@ -441,6 +438,13 @@ function DataViewer() {
                         {
                             polygonMap &&
                             <>
+                                <label htmlFor='markers'>Markers</label>
+                                <input
+                                    id='markers'
+                                    type='checkbox'
+                                    checked={markers}
+                                    onChange={() => setMarkers(!markers)}
+                                />
                                 <button onClick={handleCopyPolygonsToClipboard}>Copy</button>
                                 <button onClick={handlePastePolygonsToClipboard}>Paste</button>
                                 <button onClick={handleDownloadPolygons}>Download</button>
@@ -448,15 +452,14 @@ function DataViewer() {
                             </>
                         }
                     </div>
-
                     {
                         polygonMap &&
                         <PolygonMap
                             layers={polygons}
                             setLayers={setPolygons}
+                            markers={markers ? messages.map((message) => parseCoordinatesFromContent(message.content)).filter((x) => x != null).map((ll) => ({ lat: ll[0], lng: ll[1] })) : []}
                         />
                     }
-
                     <div className={classes.inputGroupRow}>
                         <input placeholder="Content" type="text" value={content} onChange={e => setContent(e.target.value)}/>
                         <button onClick={handleSubmit}>Search</button>

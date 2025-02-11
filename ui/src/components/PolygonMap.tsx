@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"; 
 import { createUseStyles } from 'react-jss';
-import { FeatureGroup, MapContainer, TileLayer, Polygon, useMapEvent } from "react-leaflet";
+import { FeatureGroup, MapContainer, TileLayer, Polygon, useMapEvent, Marker } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import { LatLngLiteral } from "leaflet";
 
@@ -26,12 +26,13 @@ export type PolygonMapLayer = {
 type Props = {
   layers: PolygonMapLayer[];
   setLayers: React.Dispatch<React.SetStateAction<PolygonMapLayer[]>>;
+  markers: LatLngLiteral[];
 }
 
 const defaultCenter: LatLngLiteral = { lat: 51.477, lng: 0 };
 const defaultZoom = 4;
 
-export const PolygonMap: React.FC<Props> = ({ layers, setLayers }) => {
+export const PolygonMap: React.FC<Props> = ({ layers, setLayers, markers }) => {
   const classes = useStyles();
 
   const [center, setCenter] = useState<LatLngLiteral>(() => {
@@ -104,6 +105,9 @@ export const PolygonMap: React.FC<Props> = ({ layers, setLayers }) => {
         scrollWheelZoom={false}
       >
         <UpdateCenterAndZoom />
+        {markers.map((marker, index) => (
+          <Marker key={index} position={marker} />
+        ))}
         <FeatureGroup>
           <EditControl
             position="topleft"
