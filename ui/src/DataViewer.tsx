@@ -111,7 +111,7 @@ function DataViewer() {
     const messagesRef = useRef<Set<string>>(new Set());
     const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
     const [polygonMap, setPolygonMap] = useState<boolean>(false);
-    const [polygonMapLayers, setPolygonMapLayers] = useState<PolygonMapLayer[]>([]);
+    const [polygons, setPolygons] = useState<PolygonMapLayer[]>([]);
 
     const {connectWS, disconnectWS, lastMessage} = useWS({
         url: `ws://${host}/ws`,
@@ -255,6 +255,11 @@ function DataViewer() {
             .map((message) => message.content.replace(/\u202F/g, ' ').replace(/\xa0/g, ' '))
             .join('\n\n');
 
+        copyToClipboard(content);
+        alert('Copied to clipboard');
+    }
+
+    const copyToClipboard = async (content: string) => {
         if (!navigator.clipboard) {
             console.error('Clipboard API is not available');
             console.log('Try to use fallback');
@@ -271,7 +276,6 @@ function DataViewer() {
         } else {
             await navigator.clipboard.writeText(content);
         }
-        alert('Copied to clipboard');
     }
 
     const handleSelectParsableMessages = () => {
@@ -322,10 +326,26 @@ function DataViewer() {
         URL.revokeObjectURL(url);
     }
 
+    const handleCopyPolygonsToClipboard = async () => {
+        const n = polygons.length;
+        switch (n) {
+            case 0:
+                alert("No polygons to copy");
+                break;
+            case 1:
+                copyToClipboard(JSON.stringify(polygons[0], null, 2));
+                alert("One polygon is copied to clipboard");
+                break;
+            default:
+                copyToClipboard(JSON.stringify(polygons, null, 2));
+                alert(`${n} polygons are copied to clipboard`);
+                break;
+        }
+    }
+
     const handleClose = () => {
         setOpen(false);
     }
-
 
     const modalStyle = {
         position: 'absolute',
@@ -348,7 +368,7 @@ function DataViewer() {
         if (ll != null) {
             const [ lat, lng ] = ll;
             const point: LatLngLiteral = { lat, lng };
-            polygonMapLayers.map(layer => layer.latlngs).forEach(polygon => {
+            polygons.map(layer => layer.latlngs).forEach(polygon => {
                 if (!selected && isPointInPolygon(point, polygon))
                     selected = true;
             });
@@ -412,9 +432,7 @@ function DataViewer() {
                         {
                             polygonMap &&
                             <>
-                                <button onClick={() => {
-                                    alert('not implemented');
-                                }}>Copy</button>
+                                <button onClick={handleCopyPolygonsToClipboard}>Copy</button>
                                 <button onClick={() => {
                                     alert('not implemented');
                                 }}>Download</button>
@@ -425,8 +443,8 @@ function DataViewer() {
                     {
                         polygonMap &&
                         <PolygonMap
-                            layers={polygonMapLayers}
-                            setLayers={setPolygonMapLayers}
+                            layers={polygons}
+                            setLayers={setPolygons}
                         />
                     }
 
