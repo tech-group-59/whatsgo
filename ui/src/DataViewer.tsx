@@ -80,9 +80,15 @@ const useStyles = createUseStyles({
         padding: '0.5rem',
         'border-bottom': '1px solid #f3f3f3',
     },
-    selected: {
+    selectedByGroup: {
         background: 'rgba(114,0,0,0.74)',
-    }
+        '&$selectedByGeo': {
+            background: 'rgba(132, 0, 255, 0.79)',
+        },
+    },
+    selectedByGeo: {
+        background: 'rgba(0,106,255,0.79)',
+    },
 })
 
 const notificationSound = '/notify.mp3';
@@ -362,25 +368,27 @@ function DataViewer() {
         p: 4,
     };
 
-    const isSelected = (content: string) => {
-        var selected = false;
+    const isSelected = (content: string): string => {
         // by coordinates
+        var geo = false;
         const ll = parseCoordinatesFromContent(content);
         if (ll != null) {
             const [ lat, lng ] = ll;
             const point: LatLngLiteral = { lat, lng };
             polygons.map(layer => layer.latlngs).forEach(polygon => {
-                if (!selected && isPointInPolygon(point, polygon))
-                    selected = true;
+                if (!geo && isPointInPolygon(point, polygon))
+                    geo = true;
             });
         }
         // by group
-        if (!selected && selectedContentGroups.length && content) {
+        var group = false;
+        if (selectedContentGroups.length && content) {
             const firstLine = (content.split('\n')[0]).trim();
             if (selectedContentGroups.includes(firstLine))
-                selected = true;
+                group = true;
         }
-        return selected;
+        // return classes
+        return `${geo ? classes.selectedByGeo : ''} ${group ? classes.selectedByGroup : ''}`;
     }
 
 
@@ -547,7 +555,7 @@ function DataViewer() {
                                                 <MessageContent
                                                     message={message}
                                                     lastContent={lastContent}
-                                                    className={isSelected(message.content) ? classes.selected : ''}
+                                                    className={isSelected(message.content)}
                                                 />
                                                 {message.filename && <a href={message.filename}
                                                                         target="_blank" rel="noreferrer">Download</a>}
