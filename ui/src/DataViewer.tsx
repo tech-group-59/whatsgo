@@ -38,7 +38,7 @@ const useStyles = createUseStyles({
         padding: '0 0 0.5rem 0',
         display: 'flex',
         flexDirection: 'row',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         gap: '0.5rem',
     },
     inputGroup: {
@@ -110,6 +110,7 @@ function DataViewer() {
     const messageRef = useRef<string | null>(null);
     const messagesRef = useRef<Set<string>>(new Set());
     const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+    const [polygonMap, setPolygonMap] = useState<boolean>(false);
     const [polygonMapLayers, setPolygonMapLayers] = useState<PolygonMapLayer[]>([]);
 
     const {connectWS, disconnectWS, lastMessage} = useWS({
@@ -390,25 +391,33 @@ function DataViewer() {
 
             <div className={classes.wrap}>
                 <div className={classes.form}>
-                    <div>{lastMessageTs}</div>
-
-                    <PolygonMap
-                        layers={polygonMapLayers}
-                        setLayers={setPolygonMapLayers}
-                    />
+                    <div className={classes.inputGroupRow} title="Last search">{lastMessageTs}</div>
 
                     <div className={classes.inputGroupRow}>
-                        <div className={classes.inputGroup}>
-                            <label>Start date</label>
-                            <input type="date" value={moment(dateFrom).format('YYYY-MM-DD')}
-                                   onChange={e => setDateFrom(new Date(e.target.value))}/>
-                        </div>
-                        <div className={classes.inputGroup}>
-                            <label>End date</label>
-                            <input type="date" value={moment(dateTo).format('YYYY-MM-DD')}
-                                   onChange={e => setDateTo(new Date(e.target.value))}/>
-                        </div>
+                        <label htmlFor="startDate">Date range</label>
+                        <input
+                            id="startDate"
+                            type="date"
+                            value={moment(dateFrom).format('YYYY-MM-DD')}
+                            onChange={e => setDateFrom(new Date(e.target.value))}
+                        />
+                        <input
+                            type="date"
+                            value={moment(dateTo).format('YYYY-MM-DD')}
+                            onChange={e => setDateTo(new Date(e.target.value))}
+                        />
+                        <button onClick={() => {
+                            setPolygonMap(!polygonMap);
+                        }}>Polygons</button>
                     </div>
+
+                    {
+                        polygonMap &&
+                        <PolygonMap
+                            layers={polygonMapLayers}
+                            setLayers={setPolygonMapLayers}
+                        />
+                    }
 
                     <div className={classes.inputGroupRow}>
                         <input placeholder="Content" type="text" value={content} onChange={e => setContent(e.target.value)}/>
