@@ -1,7 +1,8 @@
 import { LatLngLiteral } from "leaflet";
+import moment from "moment";
 
 import { RawMessage } from "./types.ts";
-import moment from "moment";
+import { PolygonMapLayer } from "./components/PolygonMap.tsx";
 
 export const parseDateTime = (message: RawMessage): Date | null => {
     const input = message.content;
@@ -83,6 +84,30 @@ export const downloadJsonFile = (json: string, filename: string) => {
     a.download = `${filename}-${(new Date()).toISOString()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+export const uploadJsonFile = (callback: (value: any) => void) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files && files.length) {
+            const file = files[0];
+            const reader = new FileReader();
+            reader.onload = async e => {
+                if (e.target && e.target.result)
+                    try {
+                        callback(JSON.parse(e.target.result as string));
+                    } catch (error) {
+                        if (error instanceof Error) alert('Failed to parse polygons: ' + error.message);
+                        else alert('Failed to parse polygons: Unknown error');
+                    }
+            }
+            reader.readAsText(file);
+        }
+    }
+    input.click();
 }
 
 export const copyToClipboard = async (content: string) => {

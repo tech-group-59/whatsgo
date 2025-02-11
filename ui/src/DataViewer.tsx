@@ -6,7 +6,7 @@ import { LatLngLiteral } from "leaflet";
 
 import useWS from "./useWS.ts";
 import { RawMessage, RawMessages } from "./types";
-import { copyToClipboard, downloadJsonFile, getYesterdaysDate, isPointInPolygon, parseCoordinatesFromContent, parseDateTime } from "./helpers";
+import { copyToClipboard, downloadJsonFile, getYesterdaysDate, isPointInPolygon, parseCoordinatesFromContent, parseDateTime, uploadJsonFile } from "./helpers";
 import { MessageContent } from "./components/MessageContent";
 import { ParsedContent } from "./components/ParsedContent.tsx";
 import { PolygonMap, PolygonMapLayer } from "./components/PolygonMap.tsx";
@@ -335,6 +335,9 @@ function DataViewer() {
     const handleDownloadPolygons = async () =>
         downloadJsonFile(JSON.stringify(polygons, null, 2), 'polygons');
 
+    const handleUploadPolygons = async () =>
+        uploadJsonFile(setPolygons);
+
     const handleClose = () => {
         setOpen(false);
     }
@@ -427,6 +430,7 @@ function DataViewer() {
                                 <button onClick={handleCopyPolygonsToClipboard}>Copy</button>
                                 <button onClick={handlePastePolygonsToClipboard}>Paste</button>
                                 <button onClick={handleDownloadPolygons}>Download</button>
+                                <button onClick={handleUploadPolygons}>Upload</button>
                             </>
                         }
                     </div>

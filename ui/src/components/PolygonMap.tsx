@@ -96,40 +96,37 @@ export const PolygonMap: React.FC<Props> = ({ layers, setLayers }) => {
   };
 
   return (
-    <>
-      <div className={`${classes.mapContainerWrapper} roll-in`}>
-        <MapContainer
-          className={classes.mapContainer}
-          center={center}
-          zoom={zoom}
-          scrollWheelZoom={false}
-        >
-          <UpdateCenterAndZoom />
-          <FeatureGroup>
-            <EditControl
-              position="topright"
-              onCreated={onCreate}
-              onEdited={onEdited}
-              onDeleted={onDeleted}
-              draw={{
-                rectangle: false,
-                polyline: false,
-                circle: false,
-                circlemarker: false,
-                marker: false,
-              }}
-            />
-            {layers.map((layer) => (
-              <Polygon key={layer.id} positions={layer.latlngs} />
-            ))}
-          </FeatureGroup>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    <div className={`${classes.mapContainerWrapper} roll-in`}>
+      <MapContainer
+        className={classes.mapContainer}
+        center={center}
+        zoom={zoom}
+        scrollWheelZoom={false}
+      >
+        <UpdateCenterAndZoom />
+        <FeatureGroup>
+          <EditControl
+            position="topleft"
+            onCreated={onCreate}
+            onEdited={onEdited}
+            onDeleted={onDeleted}
+            draw={{
+              rectangle: false,
+              polyline: false,
+              circle: false,
+              circlemarker: false,
+              marker: false,
+            }}
           />
-        </MapContainer>
-      </div>
-      {/* <textarea>{JSON.stringify(layers, null, 2)}</textarea> */}
-    </>
+          {layers.map((layer) => (
+            <Polygon key={layer.id} positions={layer.latlngs} />
+          ))}
+        </FeatureGroup>
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+      </MapContainer>
+    </div>
   )
 };
