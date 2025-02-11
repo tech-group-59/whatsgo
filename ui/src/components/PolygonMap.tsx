@@ -1,5 +1,6 @@
+import React, { useEffect, useState } from "react"; 
 import { createUseStyles } from 'react-jss';
-import { FeatureGroup, MapContainer, TileLayer } from "react-leaflet";
+import { FeatureGroup, MapContainer, TileLayer, useMapEvent } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import { LatLngLiteral } from "leaflet";
 
@@ -21,16 +22,42 @@ type Props = {
   setLayers: React.Dispatch<React.SetStateAction<PolygonMapLayer[]>>;
 }
 
+const defaultCenter: LatLngLiteral = { lat: 51.477, lng: 0 };
+const defaultZoom = 4;
+
 export const PolygonMap: React.FC<Props> = ({ setLayers }) => {
   const classes = useStyles();
 
-  const _onCreate = (e: any) => {
-    console.log(e);
+  const [center, setCenter] = useState<LatLngLiteral>(() => {
+    const savedCenter = localStorage.getItem("polygonMapCenter");
+    return savedCenter ? JSON.parse(savedCenter) : defaultCenter;
+  });
 
+  const [zoom, setZoom] = useState<number>(() => {
+    const savedZoom = localStorage.getItem("polygonMapZoom");
+    return savedZoom ? JSON.parse(savedZoom) : defaultZoom;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("polygonMapCenter", JSON.stringify(center));
+  }, [center]);
+
+  useEffect(() => {
+    localStorage.setItem("polygonMapZoom", JSON.stringify(zoom));
+  }, [zoom]);
+
+  const MyComponent = () => {
+    const map = useMapEvent('moveend', () => {
+      setCenter(map.getCenter());
+      setZoom(map.getZoom());
+    })
+    return null
+  }
+
+  const _onCreate = (e: any) => {
     const { layerType, layer } = e;
     if (layerType === "polygon") {
       const { _leaflet_id } = layer;
-
       setLayers((layers) => [
         ...layers,
         { id: _leaflet_id, latlngs: layer.getLatLngs()[0] },
@@ -39,11 +66,9 @@ export const PolygonMap: React.FC<Props> = ({ setLayers }) => {
   };
 
   const _onEdited = (e: any) => {
-    console.log(e);
     const {
       layers: { _layers },
     } = e;
-
     Object.values(_layers).forEach(({ _leaflet_id, editing }: any) => {
       setLayers((layers) =>
         layers.map((l) =>
@@ -56,18 +81,22 @@ export const PolygonMap: React.FC<Props> = ({ setLayers }) => {
   };
 
   const _onDeleted = (e: any) => {
-    console.log(e);
     const {
       layers: { _layers },
     } = e;
-
     Object.values(_layers).forEach(({ _leaflet_id }: any) => {
       setLayers((layers) => layers.filter((l) => l.id !== _leaflet_id));
     });
   };
 
   return (
-    <MapContainer className={classes.mapContainer} center={[51.505, -0.09]} zoom={13} scrollWheelZoom={false}>
+    <MapContainer
+      className={classes.mapContainer}
+      center={center}
+      zoom={zoom}
+      scrollWheelZoom={false}
+    >
+      <MyComponent />
       <FeatureGroup>
         <EditControl
           position="topright"
