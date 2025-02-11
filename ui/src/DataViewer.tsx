@@ -358,7 +358,6 @@ function DataViewer() {
             if (selectedContentGroups.includes(firstLine))
                 selected = true;
         }
-        // default
         return selected;
     }
 
@@ -393,13 +392,10 @@ function DataViewer() {
                 <div className={classes.form}>
                     <div>{lastMessageTs}</div>
 
-                    <div>
-                        <PolygonMap
-                            layers={polygonMapLayers}
-                            setLayers={setPolygonMapLayers}
-                        />
-                        <pre className="text-left">{JSON.stringify(polygonMapLayers, null, 2)}</pre>
-                    </div>
+                    <PolygonMap
+                        layers={polygonMapLayers}
+                        setLayers={setPolygonMapLayers}
+                    />
 
                     <div className={classes.inputGroupRow}>
                         <div className={classes.inputGroup}>
