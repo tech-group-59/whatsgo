@@ -74,3 +74,32 @@ export const parseCoordinatesFromContent = (content: string): [number, number] |
     }
     return null;
 }
+
+export const downloadJsonFile = (json: string, filename: string) => {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}-${(new Date()).toISOString()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+export const copyToClipboard = async (content: string) => {
+    if (!navigator.clipboard) {
+        console.debug('Clipboard API is not available');
+        console.debug('Try to use fallback');
+        // fallback for browsers that do not support clipboard API
+        const textArea = document.createElement('textarea');
+        textArea.value = content;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        // scroll to the top
+        window.scrollTo(0, 0);
+    } else {
+        await navigator.clipboard.writeText(content);
+    }
+}

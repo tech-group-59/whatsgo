@@ -6,7 +6,7 @@ import { LatLngLiteral } from "leaflet";
 
 import useWS from "./useWS.ts";
 import { RawMessage, RawMessages } from "./types";
-import { getYesterdaysDate, isPointInPolygon, parseCoordinatesFromContent, parseDateTime } from "./helpers";
+import { copyToClipboard, downloadJsonFile, getYesterdaysDate, isPointInPolygon, parseCoordinatesFromContent, parseDateTime } from "./helpers";
 import { MessageContent } from "./components/MessageContent";
 import { ParsedContent } from "./components/ParsedContent.tsx";
 import { PolygonMap, PolygonMapLayer } from "./components/PolygonMap.tsx";
@@ -35,11 +35,12 @@ const useStyles = createUseStyles({
     },
     form: {},
     inputGroupRow: {
-        padding: '0 0 0.5rem 0',
+        alignItems: 'center',
         display: 'flex',
         flexDirection: 'row',
-        alignItems: 'center',
+        flexWrap: 'wrap',
         gap: '0.5rem',
+        padding: '0 0 0.5rem 0',
     },
     inputGroup: {
         display: 'flex',
@@ -259,25 +260,6 @@ function DataViewer() {
         alert('Copied to clipboard');
     }
 
-    const copyToClipboard = async (content: string) => {
-        if (!navigator.clipboard) {
-            console.error('Clipboard API is not available');
-            console.log('Try to use fallback');
-            // fallback for browsers that do not support clipboard API
-            const textArea = document.createElement('textarea');
-            textArea.value = content;
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            // scroll to the top
-            window.scrollTo(0, 0);
-        } else {
-            await navigator.clipboard.writeText(content);
-        }
-    }
-
     const handleSelectParsableMessages = () => {
         const selectedIds = filteredMessages.filter((message) => {
             return parseCoordinatesFromContent(message.content) && parseDateTime(message);
@@ -316,32 +298,42 @@ function DataViewer() {
         const json = JSON.stringify(content, null, 2);
         // await navigator.clipboard.writeText(json);
 
-        // download the file
-        const blob = new Blob([json], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `messages-${(new Date()).toISOString()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        downloadJsonFile(json, 'messages');
     }
 
     const handleCopyPolygonsToClipboard = async () => {
         const n = polygons.length;
+        const json = JSON.stringify(polygons, null, 2);
         switch (n) {
             case 0:
                 alert("No polygons to copy");
                 break;
             case 1:
-                copyToClipboard(JSON.stringify(polygons[0], null, 2));
+                copyToClipboard(json);
                 alert("One polygon is copied to clipboard");
                 break;
             default:
-                copyToClipboard(JSON.stringify(polygons, null, 2));
+                copyToClipboard(json);
                 alert(`${n} polygons are copied to clipboard`);
                 break;
         }
     }
+
+    const handlePastePolygonsToClipboard = async () => {
+        const content = prompt('Paste polygons here');
+        if (content)
+            try {
+                setPolygons(JSON.parse(content));
+            } catch (error) {
+                if (error instanceof Error)
+                    alert('Failed to parse polygons: ' + error.message);
+                else
+                    alert('Failed to parse polygons: Unknown error');
+            }
+    }
+
+    const handleDownloadPolygons = async () =>
+        downloadJsonFile(JSON.stringify(polygons, null, 2), 'polygons');
 
     const handleClose = () => {
         setOpen(false);
@@ -433,9 +425,8 @@ function DataViewer() {
                             polygonMap &&
                             <>
                                 <button onClick={handleCopyPolygonsToClipboard}>Copy</button>
-                                <button onClick={() => {
-                                    alert('not implemented');
-                                }}>Download</button>
+                                <button onClick={handlePastePolygonsToClipboard}>Paste</button>
+                                <button onClick={handleDownloadPolygons}>Download</button>
                             </>
                         }
                     </div>
