@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"; 
 import { createUseStyles } from 'react-jss';
-import { FeatureGroup, MapContainer, TileLayer, useMapEvent } from "react-leaflet";
+import { FeatureGroup, MapContainer, TileLayer, Polygon, useMapEvent } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import { LatLngLiteral } from "leaflet";
 
@@ -19,13 +19,14 @@ export type PolygonMapLayer = {
 };
 
 type Props = {
+  layers: PolygonMapLayer[];
   setLayers: React.Dispatch<React.SetStateAction<PolygonMapLayer[]>>;
 }
 
 const defaultCenter: LatLngLiteral = { lat: 51.477, lng: 0 };
 const defaultZoom = 4;
 
-export const PolygonMap: React.FC<Props> = ({ setLayers }) => {
+export const PolygonMap: React.FC<Props> = ({ layers, setLayers }) => {
   const classes = useStyles();
 
   const [center, setCenter] = useState<LatLngLiteral>(() => {
@@ -46,15 +47,15 @@ export const PolygonMap: React.FC<Props> = ({ setLayers }) => {
     localStorage.setItem("polygonMapZoom", JSON.stringify(zoom));
   }, [zoom]);
 
-  const MyComponent = () => {
+  const UpdateCenterAndZoom = () => {
     const map = useMapEvent('moveend', () => {
       setCenter(map.getCenter());
       setZoom(map.getZoom());
-    })
-    return null
+    });
+    return null;
   }
 
-  const _onCreate = (e: any) => {
+  const onCreate = (e: any) => {
     const { layerType, layer } = e;
     if (layerType === "polygon") {
       const { _leaflet_id } = layer;
@@ -65,7 +66,7 @@ export const PolygonMap: React.FC<Props> = ({ setLayers }) => {
     }
   };
 
-  const _onEdited = (e: any) => {
+  const onEdited = (e: any) => {
     const {
       layers: { _layers },
     } = e;
@@ -80,7 +81,7 @@ export const PolygonMap: React.FC<Props> = ({ setLayers }) => {
     });
   };
 
-  const _onDeleted = (e: any) => {
+  const onDeleted = (e: any) => {
     const {
       layers: { _layers },
     } = e;
@@ -96,13 +97,13 @@ export const PolygonMap: React.FC<Props> = ({ setLayers }) => {
       zoom={zoom}
       scrollWheelZoom={false}
     >
-      <MyComponent />
+      <UpdateCenterAndZoom />
       <FeatureGroup>
         <EditControl
           position="topright"
-          onCreated={_onCreate}
-          onEdited={_onEdited}
-          onDeleted={_onDeleted}
+          onCreated={onCreate}
+          onEdited={onEdited}
+          onDeleted={onDeleted}
           draw={{
             rectangle: false,
             polyline: false,
@@ -111,6 +112,9 @@ export const PolygonMap: React.FC<Props> = ({ setLayers }) => {
             marker: false,
           }}
         />
+        {layers.map((layer) => (
+          <Polygon key={layer.id} positions={layer.latlngs} />
+        ))}
       </FeatureGroup>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

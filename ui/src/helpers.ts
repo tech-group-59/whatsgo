@@ -1,4 +1,6 @@
-import {Point, RawMessage} from "./types.ts";
+import { LatLngLiteral } from "leaflet";
+
+import { RawMessage } from "./types.ts";
 import moment from "moment";
 
 export const parseDateTime = (message: RawMessage): Date | null => {
@@ -30,23 +32,23 @@ export const parseDateTime = (message: RawMessage): Date | null => {
     return null;
 }
 
-
 export const getYesterdaysDate = () => {
     const date = new Date();
     date.setDate(date.getDate() - 1);
     return date;
 }
 
-export const isPointInPolygon = (point: Point, polygon: Point[]): boolean => {
+export const isPointInPolygon = (point: LatLngLiteral, polygon: LatLngLiteral[]): boolean => {
     let inside = false;
-    const { x, y } = point;
+    const { lat, lng } = point;
+    const n = polygon.length;
 
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const { x: xi, y: yi } = polygon[i];
-        const { x: xj, y: yj } = polygon[j];
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+        const xi = polygon[i].lat, yi = polygon[i].lng;
+        const xj = polygon[j].lat, yj = polygon[j].lng;
 
-        const intersect = yi > y !== yj > y &&
-            x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+        const intersect = (yi > lng) !== (yj > lng) &&
+            (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
 
         if (intersect) inside = !inside;
     }
@@ -72,4 +74,3 @@ export const parseCoordinatesFromContent = (content: string): [number, number] |
     }
     return null;
 }
-

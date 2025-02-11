@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Button, Modal } from "@mui/material";
 import { createUseStyles } from 'react-jss';
 import moment from 'moment';
+import { LatLngLiteral } from "leaflet";
 
 import useWS from "./useWS.ts";
-import { Point, RawMessage, RawMessages } from "./types";
+import { RawMessage, RawMessages } from "./types";
 import { getYesterdaysDate, isPointInPolygon, parseCoordinatesFromContent, parseDateTime } from "./helpers";
 import { MessageContent } from "./components/MessageContent";
 import { ParsedContent } from "./components/ParsedContent.tsx";
@@ -114,10 +115,10 @@ function DataViewer() {
     const {connectWS, disconnectWS, lastMessage} = useWS({
         url: `ws://${host}/ws`,
         onOpen: () => {
-            console.log('connected to device');
+            console.debug('connected to device');
         },
         onClose: () => {
-            console.log('Disconnected from device');
+            console.debug('Disconnected from device');
         },
         onMessage: (event) => {
             messageRef.current = event.data;
@@ -196,7 +197,7 @@ function DataViewer() {
         // Function to handle requesting notification permission
         const requestNotificationPermission = async () => {
             const permission = await Notification.requestPermission();
-            console.log('Notification permission:', permission);
+            console.debug('Notification permission:', permission);
         };
 
         // Call the function to request permission
@@ -339,32 +340,26 @@ function DataViewer() {
         p: 4,
     };
 
-    //37.80130469219802,48.02899013680949
-    const examplePolygon: Point[] = [
-        { x: 37.538, y: 48.163 },
-        { x: 37.554, y: 47.828 },
-        { x: 38.131, y: 47.788 },
-        { x: 38.048, y: 48.132 },
-        { x: 37.538, y: 48.163 } // Closed polygon
-    ];
-
     const isSelected = (content: string) => {
+        var selected = false;
         // by coordinates
         const ll = parseCoordinatesFromContent(content);
         if (ll != null) {
-            const [ lat, lon ] = ll;
-            const point = { x: lon, y: lat };
-            if (isPointInPolygon(point, examplePolygon)) {
-                return true;
-            }
+            const [ lat, lng ] = ll;
+            const point: LatLngLiteral = { lat, lng };
+            polygonMapLayers.map(layer => layer.latlngs).forEach(polygon => {
+                if (!selected && isPointInPolygon(point, polygon))
+                    selected = true;
+            });
         }
         // by group
-        if (selectedContentGroups.length && content) {
+        if (!selected && selectedContentGroups.length && content) {
             const firstLine = (content.split('\n')[0]).trim();
-            return selectedContentGroups.includes(firstLine);
+            if (selectedContentGroups.includes(firstLine))
+                selected = true;
         }
         // default
-        return false;
+        return selected;
     }
 
 
@@ -399,7 +394,10 @@ function DataViewer() {
                     <div>{lastMessageTs}</div>
 
                     <div>
-                        <PolygonMap setLayers={setPolygonMapLayers} />
+                        <PolygonMap
+                            layers={polygonMapLayers}
+                            setLayers={setPolygonMapLayers}
+                        />
                         <pre className="text-left">{JSON.stringify(polygonMapLayers, null, 2)}</pre>
                     </div>
 
@@ -511,8 +509,11 @@ function DataViewer() {
                                             <td className={classes.td}>{ts}</td>
                                             <td className={classes.td}>{chatName}</td>
                                             <td className={classes.td}>
-                                                <MessageContent message={message} lastContent={lastContent}
-                                                                className={isSelected(message.content) ? classes.selected : ''}/>
+                                                <MessageContent
+                                                    message={message}
+                                                    lastContent={lastContent}
+                                                    className={isSelected(message.content) ? classes.selected : ''}
+                                                />
                                                 {message.filename && <a href={message.filename}
                                                                         target="_blank" rel="noreferrer">Download</a>}
                                             </td>

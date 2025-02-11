@@ -31,7 +31,7 @@ const useWS = ({
         }
         reconnectTimeout.current = setInterval(() => {
             if (ws.current === null || ws.current?.readyState === WebSocket.CLOSED) {
-                console.log('reconnecting...');
+                console.debug('reconnecting...');
                 connectWS();
             }
         }, 2000);
@@ -40,7 +40,7 @@ const useWS = ({
     const connectWS = () => {
         if (isConnected) return;
 
-        console.log(`[${new Date().toLocaleTimeString()}] WS creating`);
+        console.debug(`[${new Date().toLocaleTimeString()}] WS creating`);
 
         ws.current = new WebSocket(url);
 
