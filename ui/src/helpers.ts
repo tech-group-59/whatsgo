@@ -2,7 +2,6 @@ import { LatLngLiteral } from "leaflet";
 import moment from "moment";
 
 import { RawMessage } from "./types.ts";
-import { PolygonMapLayer } from "./components/PolygonMap.tsx";
 
 export const parseDateTime = (message: RawMessage): Date | null => {
     const input = message.content;

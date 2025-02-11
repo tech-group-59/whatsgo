@@ -112,7 +112,10 @@ function DataViewer() {
     const messagesRef = useRef<Set<string>>(new Set());
     const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
     const [polygonMap, setPolygonMap] = useState<boolean>(false);
-    const [polygons, setPolygons] = useState<PolygonMapLayer[]>([]);
+    const [polygons, setPolygons] = useState<PolygonMapLayer[]>(() => {
+        const storedPolygons = localStorage.getItem('polygons');
+        return storedPolygons ? JSON.parse(storedPolygons) : [];
+    });
 
     const {connectWS, disconnectWS, lastMessage} = useWS({
         url: `ws://${host}/ws`,
@@ -131,6 +134,9 @@ function DataViewer() {
         localStorage.setItem('selectedContentGroups', JSON.stringify(selectedContentGroups));
     }, [selectedContentGroups]);
 
+    useEffect(() => {
+        localStorage.setItem('polygons', JSON.stringify(polygons));
+    }, [polygons]);
 
     useEffect(() => {
         if (messageRef.current) {
