@@ -409,6 +409,17 @@ function DataViewer() {
                         <button onClick={() => {
                             setPolygonMap(!polygonMap);
                         }}>Polygons</button>
+                        {
+                            polygonMap &&
+                            <>
+                                <button onClick={() => {
+                                    alert('not implemented');
+                                }}>Copy</button>
+                                <button onClick={() => {
+                                    alert('not implemented');
+                                }}>Download</button>
+                            </>
+                        }
                     </div>
 
                     {

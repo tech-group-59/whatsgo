@@ -8,8 +8,13 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
 const useStyles = createUseStyles({
+  mapContainerWrapper: {
+    marginBottom: '0.5rem',
+  },
   mapContainer: {
-    height: '500px',
+    height: '35rem',
+    marginBottom: '0.5rem',
+    borderRadius: '8px',
   },
 });
 
@@ -92,37 +97,39 @@ export const PolygonMap: React.FC<Props> = ({ layers, setLayers }) => {
 
   return (
     <>
-      <MapContainer
-        className={classes.mapContainer}
-        center={center}
-        zoom={zoom}
-        scrollWheelZoom={false}
-      >
-        <UpdateCenterAndZoom />
-        <FeatureGroup>
-          <EditControl
-            position="topright"
-            onCreated={onCreate}
-            onEdited={onEdited}
-            onDeleted={onDeleted}
-            draw={{
-              rectangle: false,
-              polyline: false,
-              circle: false,
-              circlemarker: false,
-              marker: false,
-            }}
+      <div className={`${classes.mapContainerWrapper} roll-in`}>
+        <MapContainer
+          className={classes.mapContainer}
+          center={center}
+          zoom={zoom}
+          scrollWheelZoom={false}
+        >
+          <UpdateCenterAndZoom />
+          <FeatureGroup>
+            <EditControl
+              position="topright"
+              onCreated={onCreate}
+              onEdited={onEdited}
+              onDeleted={onDeleted}
+              draw={{
+                rectangle: false,
+                polyline: false,
+                circle: false,
+                circlemarker: false,
+                marker: false,
+              }}
+            />
+            {layers.map((layer) => (
+              <Polygon key={layer.id} positions={layer.latlngs} />
+            ))}
+          </FeatureGroup>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {layers.map((layer) => (
-            <Polygon key={layer.id} positions={layer.latlngs} />
-          ))}
-        </FeatureGroup>
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-      </MapContainer>
-      <textarea>{JSON.stringify(layers, null, 2)}</textarea>
+        </MapContainer>
+      </div>
+      {/* <textarea>{JSON.stringify(layers, null, 2)}</textarea> */}
     </>
   )
 };
