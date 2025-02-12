@@ -1,5 +1,6 @@
-import {RawMessage} from "./types.ts";
 import moment from "moment";
+
+import { RawMessage } from "./types.ts";
 
 export const parseDateTime = (message: RawMessage): Date | null => {
     const input = message.content;
@@ -30,13 +31,11 @@ export const parseDateTime = (message: RawMessage): Date | null => {
     return null;
 }
 
-
 export const getYesterdaysDate = () => {
     const date = new Date();
     date.setDate(date.getDate() - 1);
     return date;
 }
-
 
 export const parseCoordinatesFromContent = (content: string): [number, number] | null => {
     const removeNewLines = content.replace(/\n/g, ' ');
@@ -57,3 +56,55 @@ export const parseCoordinatesFromContent = (content: string): [number, number] |
     return null;
 }
 
+export const downloadJsonFile = (json: string, filename: string) => {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}-${(new Date()).toISOString()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+export const uploadJsonFile = (callback: (value: any) => void) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files && files.length) {
+            const file = files[0];
+            const reader = new FileReader();
+            reader.onload = async e => {
+                if (e.target && e.target.result)
+                    try {
+                        callback(JSON.parse(e.target.result as string));
+                    } catch (error) {
+                        if (error instanceof Error) alert('Failed to parse polygons: ' + error.message);
+                        else alert('Failed to parse polygons: Unknown error');
+                    }
+            }
+            reader.readAsText(file);
+        }
+    }
+    input.click();
+}
+
+export const copyToClipboard = async (content: string) => {
+    if (!navigator.clipboard) {
+        console.debug('Clipboard API is not available');
+        console.debug('Try to use fallback');
+        // fallback for browsers that do not support clipboard API
+        const textArea = document.createElement('textarea');
+        textArea.value = content;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        // scroll to the top
+        window.scrollTo(0, 0);
+    } else {
+        await navigator.clipboard.writeText(content);
+    }
+}

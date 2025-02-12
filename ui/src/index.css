@@ -76,3 +76,19 @@ input[type=date] {
         transform: rotate(360deg);
     }
 }
+
+.sr-only {
+    display: none;
+}
+
+.roll-in {
+    transition: height 0.4s;
+    height: 35rem;
+    overflow: hidden;
+}
+
+@starting-style {
+    .roll-in {
+        height: 0;
+    }
+}

@@ -94,7 +94,11 @@ func (s *Server) broadcastToClients(message TrackableMessage) {
 
 func (s *Server) getDBChatsHandler(w http.ResponseWriter, r *http.Request) {
 	// Return chats from config
-	json.NewEncoder(w).Encode(s.config.Chats)
+	if s.config.Chats == nil {
+		json.NewEncoder(w).Encode([]interface{}{})
+	} else {
+		json.NewEncoder(w).Encode(s.config.Chats)
+	}
 }
 
 type WebMessage struct {

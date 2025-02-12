@@ -1,14 +1,15 @@
-import {createUseStyles} from 'react-jss';
-import {useEffect, useMemo, useRef, useState} from "react";
-
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Box, Button, Modal } from "@mui/material";
+import { createUseStyles } from 'react-jss';
 import moment from 'moment';
-import useWS from "./useWS.ts";
-import {Box, Button, Modal} from "@mui/material";
-import {RawMessage, RawMessages} from "./types";
-import {getYesterdaysDate, parseCoordinatesFromContent, parseDateTime} from "./helpers";
-import {MessageContent} from "./components/MessageContent";
-import {ParsedContent} from "./components/ParsedContent.tsx";
+import { LatLngLiteral } from "leaflet";
 
+import useWS from "./useWS.ts";
+import { RawMessage, RawMessages } from "./types";
+import { copyToClipboard, downloadJsonFile, getYesterdaysDate, parseCoordinatesFromContent, parseDateTime, uploadJsonFile } from "./helpers";
+import { MessageContent } from "./components/MessageContent";
+import { ParsedContent } from "./components/ParsedContent.tsx";
+import { PolygonMap, PolygonMapLayer, isPointInPolygon, polygonColors } from "./components/PolygonMap.tsx";
 
 let _host = window.location.host;
 
@@ -25,7 +26,6 @@ if (env && env.VITE_HOST) {
 }
 const host = _host;
 
-
 const useStyles = createUseStyles({
     wrap: {
         display: 'flex',
@@ -34,11 +34,12 @@ const useStyles = createUseStyles({
     },
     form: {},
     inputGroupRow: {
-        padding: '0 0 0.5rem 0',
+        alignItems: 'center',
         display: 'flex',
         flexDirection: 'row',
-        alignItems: 'flex-end',
+        flexWrap: 'wrap',
         gap: '0.5rem',
+        padding: '0 0 0.5rem 0',
     },
     inputGroup: {
         display: 'flex',
@@ -78,19 +79,20 @@ const useStyles = createUseStyles({
         padding: '0.5rem',
         'border-bottom': '1px solid #f3f3f3',
     },
-    selected: {
+    selectedByGroup: {
         background: 'rgba(114,0,0,0.74)',
+    },
+    selectedMultiple: {
+        background: 'rgba(155, 89, 182, 1)',
     }
 })
 
 const notificationSound = '/notify.mp3';
 
-
 function DataViewer() {
     const classes = useStyles();
 
     const [open, setOpen] = useState(false);
-
     const [dateFrom, setDateFrom] = useState(getYesterdaysDate());
     const [dateTo, setDateTo] = useState(new Date());
     const [content, setContent] = useState('');
@@ -110,14 +112,20 @@ function DataViewer() {
     const messageRef = useRef<string | null>(null);
     const messagesRef = useRef<Set<string>>(new Set());
     const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+    const [polygonMap, setPolygonMap] = useState<boolean>(false);
+    const [polygons, setPolygons] = useState<PolygonMapLayer[]>(() => {
+        const storedPolygons = localStorage.getItem('polygons');
+        return storedPolygons ? JSON.parse(storedPolygons) : [];
+    });
+    const [markers, setMarkers] = useState<boolean>(false);
 
     const {connectWS, disconnectWS, lastMessage} = useWS({
         url: `ws://${host}/ws`,
         onOpen: () => {
-            console.log('connected to device');
+            console.debug('connected to device');
         },
         onClose: () => {
-            console.log('Disconnected from device');
+            console.debug('Disconnected from device');
         },
         onMessage: (event) => {
             messageRef.current = event.data;
@@ -128,6 +136,9 @@ function DataViewer() {
         localStorage.setItem('selectedContentGroups', JSON.stringify(selectedContentGroups));
     }, [selectedContentGroups]);
 
+    useEffect(() => {
+        localStorage.setItem('polygons', JSON.stringify(polygons));
+    }, [polygons]);
 
     useEffect(() => {
         if (messageRef.current) {
@@ -173,7 +184,6 @@ function DataViewer() {
             }, []);
             setContentGroups(groups);
         }
-
     }, [messages]);
 
     useEffect(() => {
@@ -196,7 +206,7 @@ function DataViewer() {
         // Function to handle requesting notification permission
         const requestNotificationPermission = async () => {
             const permission = await Notification.requestPermission();
-            console.log('Notification permission:', permission);
+            console.debug('Notification permission:', permission);
         };
 
         // Call the function to request permission
@@ -253,22 +263,7 @@ function DataViewer() {
             .map((message) => message.content.replace(/\u202F/g, ' ').replace(/\xa0/g, ' '))
             .join('\n\n');
 
-        if (!navigator.clipboard) {
-            console.error('Clipboard API is not available');
-            console.log('Try to use fallback');
-            // fallback for browsers that do not support clipboard API
-            const textArea = document.createElement('textarea');
-            textArea.value = content;
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            // scroll to the top
-            window.scrollTo(0, 0);
-        } else {
-            await navigator.clipboard.writeText(content);
-        }
+        copyToClipboard(content);
         alert('Copied to clipboard');
     }
 
@@ -310,20 +305,49 @@ function DataViewer() {
         const json = JSON.stringify(content, null, 2);
         // await navigator.clipboard.writeText(json);
 
-        // download the file
-        const blob = new Blob([json], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `messages-${(new Date()).toISOString()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        downloadJsonFile(json, 'messages');
     }
+
+    const handleCopyPolygonsToClipboard = async () => {
+        const n = polygons.length;
+        const json = JSON.stringify(polygons, null, 2);
+        switch (n) {
+            case 0:
+                alert("No polygons to copy");
+                break;
+            case 1:
+                copyToClipboard(json);
+                alert("One polygon is copied to clipboard");
+                break;
+            default:
+                copyToClipboard(json);
+                alert(`${n} polygons are copied to clipboard`);
+                break;
+        }
+    }
+
+    const handlePastePolygonsToClipboard = async () => {
+        const content = prompt('Paste polygons here');
+        if (content)
+            try {
+                setPolygons(JSON.parse(content));
+            } catch (error) {
+                if (error instanceof Error)
+                    alert('Failed to parse polygons: ' + error.message);
+                else
+                    alert('Failed to parse polygons: Unknown error');
+            }
+    }
+
+    const handleDownloadPolygons = async () =>
+        downloadJsonFile(JSON.stringify(polygons, null, 2), 'polygons');
+
+    const handleUploadPolygons = async () =>
+        uploadJsonFile(setPolygons);
 
     const handleClose = () => {
         setOpen(false);
     }
-
 
     const modalStyle = {
         position: 'absolute',
@@ -339,17 +363,34 @@ function DataViewer() {
         p: 4,
     };
 
-    const isSelected = (content: string) => {
-        if (!selectedContentGroups.length || !content) {
-            return false;
+    const isSelected = (content: string): (string | null)[] => {
+        // by coordinates
+        var geo: number | null = null;
+        const ll = parseCoordinatesFromContent(content);
+        if (ll != null) {
+            const [ lat, lng ] = ll;
+            const point: LatLngLiteral = { lat, lng };
+            polygons.map(layer => layer.latlngs).forEach((polygon, i) => {
+                if (!geo && isPointInPolygon(point, polygon))
+                    geo = i;
+            });
         }
-        const firstLine = (content.split('\n')[0]).trim();
-        return selectedContentGroups.includes(firstLine);
+        // by group
+        var group = false;
+        if (selectedContentGroups.length && content) {
+            const firstLine = (content.split('\n')[0]).trim();
+            if (selectedContentGroups.includes(firstLine))
+                group = true;
+        }
+        // return styles
+        return geo != null && group ? [classes.selectedMultiple, null] :
+            group ? [classes.selectedByGroup, null] :
+            geo != null ? [null, polygonColors[geo % polygonColors.length]] :
+            [null, null];
     }
 
     return (
         <div key={lastMessageTs}>
-            <p>{lastMessageTs}</p>
             <Modal
                 open={open}
                 onClose={handleClose}
@@ -376,25 +417,51 @@ function DataViewer() {
 
             <div className={classes.wrap}>
                 <div className={classes.form}>
+                    <div className={classes.inputGroupRow} title="Last search">{lastMessageTs}</div>
+
                     <div className={classes.inputGroupRow}>
-                        <div className={classes.inputGroup}>
-                            <label>Start date</label>
-                            <input type="date" value={moment(dateFrom).format('YYYY-MM-DD')}
-                                   onChange={e => setDateFrom(new Date(e.target.value))}/>
-                        </div>
-                        <div className={classes.inputGroup}>
-                            <label>End date</label>
-                            <input type="date" value={moment(dateTo).format('YYYY-MM-DD')}
-                                   onChange={e => setDateTo(new Date(e.target.value))}/>
-                        </div>
+                        <label htmlFor="startDate">Date range</label>
+                        <input
+                            id="startDate"
+                            type="date"
+                            value={moment(dateFrom).format('YYYY-MM-DD')}
+                            onChange={e => setDateFrom(new Date(e.target.value))}
+                        />
+                        <input
+                            type="date"
+                            value={moment(dateTo).format('YYYY-MM-DD')}
+                            onChange={e => setDateTo(new Date(e.target.value))}
+                        />
+                        <button onClick={() => {
+                            setPolygonMap(!polygonMap);
+                        }}>Polygons</button>
+                        {
+                            polygonMap &&
+                            <>
+                                <label htmlFor='markers'>Markers</label>
+                                <input
+                                    id='markers'
+                                    type='checkbox'
+                                    checked={markers}
+                                    onChange={() => setMarkers(!markers)}
+                                />
+                                <button onClick={handleCopyPolygonsToClipboard}>Copy</button>
+                                <button onClick={handlePastePolygonsToClipboard}>Paste</button>
+                                <button onClick={handleDownloadPolygons}>Download</button>
+                                <button onClick={handleUploadPolygons}>Upload</button>
+                            </>
+                        }
                     </div>
-
+                    {
+                        polygonMap &&
+                        <PolygonMap
+                            layers={polygons}
+                            setLayers={setPolygons}
+                            markers={markers ? messages.map((message) => parseCoordinatesFromContent(message.content)).filter((x) => x != null).map((ll) => ({ lat: ll[0], lng: ll[1] })) : []}
+                        />
+                    }
                     <div className={classes.inputGroupRow}>
-
-                        <div className={classes.inputGroup}>
-                            <label>Content</label>
-                            <input type="text" value={content} onChange={e => setContent(e.target.value)}/>
-                        </div>
+                        <input placeholder="Content" type="text" value={content} onChange={e => setContent(e.target.value)}/>
                         <button onClick={handleSubmit}>Search</button>
                         {filteredMessages.length > 0 &&
                             <button onClick={handleSelectParsableMessages}>Select parsable messages</button>}
@@ -488,8 +555,11 @@ function DataViewer() {
                                             <td className={classes.td}>{ts}</td>
                                             <td className={classes.td}>{chatName}</td>
                                             <td className={classes.td}>
-                                                <MessageContent message={message} lastContent={lastContent}
-                                                                className={isSelected(message.content) ? classes.selected : ''}/>
+                                                <MessageContent
+                                                    message={message}
+                                                    lastContent={lastContent}
+                                                    styles={isSelected(message.content)}
+                                                />
                                                 {message.filename && <a href={message.filename}
                                                                         target="_blank" rel="noreferrer">Download</a>}
                                             </td>
