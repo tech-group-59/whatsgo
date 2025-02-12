@@ -18,6 +18,13 @@ const useStyles = createUseStyles({
   },
 });
 
+export const polygonColors = [
+  "rgba(52, 152, 219, 0.5)",
+  "rgba(46, 204, 113, 0.5)",
+  "rgba(241, 196, 15, 0.5)",
+  "rgba(230, 126, 34, 0.5)",
+];
+
 export type PolygonMapLayer = {
   id: number;
   latlngs: LatLngLiteral[];
@@ -122,9 +129,13 @@ export const PolygonMap: React.FC<Props> = ({ layers, setLayers, markers }) => {
               marker: false,
             }}
           />
-          {layers.map((layer) => (
-            <Polygon key={layer.id} positions={layer.latlngs} />
-          ))}
+            {layers.map((layer, i) => (
+              <Polygon 
+                key={layer.id} 
+                positions={layer.latlngs} 
+                pathOptions={{ color: polygonColors[(i % polygonColors.length)] }}
+              />
+            ))}
         </FeatureGroup>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -133,4 +144,22 @@ export const PolygonMap: React.FC<Props> = ({ layers, setLayers, markers }) => {
       </MapContainer>
     </div>
   )
+};
+
+export const isPointInPolygon = (point: LatLngLiteral, polygon: LatLngLiteral[]): boolean => {
+  let inside = false;
+  const { lat, lng } = point;
+  const n = polygon.length;
+
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = polygon[i].lat, yi = polygon[i].lng;
+    const xj = polygon[j].lat, yj = polygon[j].lng;
+
+    const intersect = (yi > lng) !== (yj > lng) &&
+      (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+
+    if (intersect) inside = !inside;
+  }
+
+  return inside;
 };

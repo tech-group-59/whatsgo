@@ -1,4 +1,3 @@
-import { LatLngLiteral } from "leaflet";
 import moment from "moment";
 
 import { RawMessage } from "./types.ts";
@@ -36,24 +35,6 @@ export const getYesterdaysDate = () => {
     const date = new Date();
     date.setDate(date.getDate() - 1);
     return date;
-}
-
-export const isPointInPolygon = (point: LatLngLiteral, polygon: LatLngLiteral[]): boolean => {
-    let inside = false;
-    const { lat, lng } = point;
-    const n = polygon.length;
-
-    for (let i = 0, j = n - 1; i < n; j = i++) {
-        const xi = polygon[i].lat, yi = polygon[i].lng;
-        const xj = polygon[j].lat, yj = polygon[j].lng;
-
-        const intersect = (yi > lng) !== (yj > lng) &&
-            (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
-
-        if (intersect) inside = !inside;
-    }
-
-    return inside;
 }
 
 export const parseCoordinatesFromContent = (content: string): [number, number] | null => {

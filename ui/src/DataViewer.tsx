@@ -6,10 +6,10 @@ import { LatLngLiteral } from "leaflet";
 
 import useWS from "./useWS.ts";
 import { RawMessage, RawMessages } from "./types";
-import { copyToClipboard, downloadJsonFile, getYesterdaysDate, isPointInPolygon, parseCoordinatesFromContent, parseDateTime, uploadJsonFile } from "./helpers";
+import { copyToClipboard, downloadJsonFile, getYesterdaysDate, parseCoordinatesFromContent, parseDateTime, uploadJsonFile } from "./helpers";
 import { MessageContent } from "./components/MessageContent";
 import { ParsedContent } from "./components/ParsedContent.tsx";
-import { PolygonMap, PolygonMapLayer } from "./components/PolygonMap.tsx";
+import { PolygonMap, PolygonMapLayer, isPointInPolygon, polygonColors } from "./components/PolygonMap.tsx";
 
 let _host = window.location.host;
 
@@ -81,13 +81,10 @@ const useStyles = createUseStyles({
     },
     selectedByGroup: {
         background: 'rgba(114,0,0,0.74)',
-        '&$selectedByGeo': {
-            background: 'rgba(132, 0, 255, 0.79)',
-        },
     },
-    selectedByGeo: {
-        background: 'rgba(0,106,255,0.79)',
-    },
+    selectedMultiple: {
+        background: 'rgba(155, 89, 182, 1)',
+    }
 })
 
 const notificationSound = '/notify.mp3';
@@ -366,16 +363,16 @@ function DataViewer() {
         p: 4,
     };
 
-    const isSelected = (content: string): string => {
+    const isSelected = (content: string): (string | null)[] => {
         // by coordinates
-        var geo = false;
+        var geo: number | null = null;
         const ll = parseCoordinatesFromContent(content);
         if (ll != null) {
             const [ lat, lng ] = ll;
             const point: LatLngLiteral = { lat, lng };
-            polygons.map(layer => layer.latlngs).forEach(polygon => {
+            polygons.map(layer => layer.latlngs).forEach((polygon, i) => {
                 if (!geo && isPointInPolygon(point, polygon))
-                    geo = true;
+                    geo = i;
             });
         }
         // by group
@@ -385,8 +382,11 @@ function DataViewer() {
             if (selectedContentGroups.includes(firstLine))
                 group = true;
         }
-        // return classes
-        return `${geo ? classes.selectedByGeo : ''} ${group ? classes.selectedByGroup : ''}`;
+        // return styles
+        return geo != null && group ? [classes.selectedMultiple, null] :
+            group ? [classes.selectedByGroup, null] :
+            geo != null ? [null, polygonColors[geo % polygonColors.length]] :
+            [null, null];
     }
 
     return (
@@ -558,7 +558,7 @@ function DataViewer() {
                                                 <MessageContent
                                                     message={message}
                                                     lastContent={lastContent}
-                                                    className={isSelected(message.content)}
+                                                    styles={isSelected(message.content)}
                                                 />
                                                 {message.filename && <a href={message.filename}
                                                                         target="_blank" rel="noreferrer">Download</a>}

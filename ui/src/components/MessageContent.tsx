@@ -2,15 +2,17 @@ import {RawMessage} from "../types.ts";
 import {useState} from "react";
 import {HighlightText} from "./HighlightText.tsx";
 
-export const MessageContent = ({lastContent, message, className}: {
+export const MessageContent = ({lastContent, message, styles}: {
     lastContent: string,
     message: RawMessage,
-    className: string
+    styles: (string | null)[],
 }) => {
     const [isFormatted, setIsFormatted] = useState(false);
+    const [className, color] = styles;
     return (
-        <div className={className} style={{
+        <div className={className ?? undefined} style={{
             position: 'relative',
+            backgroundColor: color ?? undefined,
         }}>
             {!!message.content && <div onClick={() => {
                 setIsFormatted(!isFormatted);
