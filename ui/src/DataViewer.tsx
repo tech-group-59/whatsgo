@@ -1,15 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Button, Modal } from "@mui/material";
-import { createUseStyles } from 'react-jss';
+import {useEffect, useMemo, useRef, useState} from "react";
+import {Box, Button, Modal} from "@mui/material";
+import {createUseStyles} from 'react-jss';
 import moment from 'moment';
-import { LatLngLiteral } from "leaflet";
+import {LatLngLiteral} from "leaflet";
 
 import useWS from "./useWS.ts";
-import { RawMessage, RawMessages } from "./types";
-import { copyToClipboard, downloadJsonFile, getYesterdaysDate, parseCoordinatesFromContent, parseDateTime, uploadJsonFile } from "./helpers";
-import { MessageContent } from "./components/MessageContent";
-import { ParsedContent } from "./components/ParsedContent.tsx";
-import { PolygonMap, PolygonMapLayer, isPointInPolygon, polygonColors } from "./components/PolygonMap.tsx";
+import {RawMessage, RawMessages} from "./types";
+import {
+    copyToClipboard,
+    downloadJsonFile,
+    getYesterdaysDate,
+    parseCoordinatesFromContent,
+    parseDateTime,
+    uploadJsonFile
+} from "./helpers";
+import {MessageContent} from "./components/MessageContent";
+import {ParsedContent} from "./components/ParsedContent.tsx";
+import {PolygonMap, PolygonMapLayer, isPointInPolygon, polygonColors} from "./components/PolygonMap.tsx";
 
 let _host = window.location.host;
 
@@ -363,30 +370,45 @@ function DataViewer() {
         p: 4,
     };
 
-    const isSelected = (content: string): (string | null)[] => {
+    const getStyleProps = (content: string): {
+        className?: string,
+        styles?: React.CSSProperties,
+    } => {
         // by coordinates
-        var geo: number | null = null;
+        let geo: number | null = null;
         const ll = parseCoordinatesFromContent(content);
         if (ll != null) {
-            const [ lat, lng ] = ll;
-            const point: LatLngLiteral = { lat, lng };
+            const [lat, lng] = ll;
+            const point: LatLngLiteral = {lat, lng};
             polygons.map(layer => layer.latlngs).forEach((polygon, i) => {
                 if (!geo && isPointInPolygon(point, polygon))
                     geo = i;
             });
         }
         // by group
-        var group = false;
+        let group = false;
         if (selectedContentGroups.length && content) {
             const firstLine = (content.split('\n')[0]).trim();
             if (selectedContentGroups.includes(firstLine))
                 group = true;
         }
         // return styles
-        return geo != null && group ? [classes.selectedMultiple, null] :
-            group ? [classes.selectedByGroup, null] :
-            geo != null ? [null, polygonColors[geo % polygonColors.length]] :
-            [null, null];
+        if (geo != null && group) {
+            return {
+                className: classes.selectedMultiple,
+            }
+        }
+        if (group) {
+            return {
+                className: classes.selectedByGroup,
+            }
+        }
+        if (geo != null) {
+            return {
+                styles: {backgroundColor: polygonColors[geo % polygonColors.length]},
+            }
+        }
+        return {};
     }
 
     return (
@@ -434,7 +456,8 @@ function DataViewer() {
                         />
                         <button onClick={() => {
                             setPolygonMap(!polygonMap);
-                        }}>Polygons</button>
+                        }}>Polygons
+                        </button>
                         {
                             polygonMap &&
                             <>
@@ -457,11 +480,15 @@ function DataViewer() {
                         <PolygonMap
                             layers={polygons}
                             setLayers={setPolygons}
-                            markers={markers ? messages.map((message) => parseCoordinatesFromContent(message.content)).filter((x) => x != null).map((ll) => ({ lat: ll[0], lng: ll[1] })) : []}
+                            markers={markers ? messages.map((message) => parseCoordinatesFromContent(message.content)).filter((x) => x != null).map((ll) => ({
+                                lat: ll[0],
+                                lng: ll[1]
+                            })) : []}
                         />
                     }
                     <div className={classes.inputGroupRow}>
-                        <input placeholder="Content" type="text" value={content} onChange={e => setContent(e.target.value)}/>
+                        <input placeholder="Content" type="text" value={content}
+                               onChange={e => setContent(e.target.value)}/>
                         <button onClick={handleSubmit}>Search</button>
                         {filteredMessages.length > 0 &&
                             <button onClick={handleSelectParsableMessages}>Select parsable messages</button>}
@@ -535,6 +562,7 @@ function DataViewer() {
                                     } else {
                                         chatName = message.chat;
                                     }
+                                    const props = getStyleProps(message.content);
                                     return (
                                         <tr key={message.id} className={classes.dataRow}>
                                             <td>
@@ -558,7 +586,8 @@ function DataViewer() {
                                                 <MessageContent
                                                     message={message}
                                                     lastContent={lastContent}
-                                                    styles={isSelected(message.content)}
+                                                    styles={props.styles}
+                                                    className={props.className}
                                                 />
                                                 {message.filename && <a href={message.filename}
                                                                         target="_blank" rel="noreferrer">Download</a>}
