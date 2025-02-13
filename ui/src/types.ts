@@ -8,3 +8,8 @@ export interface RawMessage {
 }
 
 export type RawMessages = RawMessage[];
+
+export interface Chat {
+    Alias: string;
+    ID: string;
+}

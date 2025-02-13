@@ -5,11 +5,11 @@ import moment from 'moment';
 import {LatLngLiteral} from "leaflet";
 
 import useWS from "./useWS.ts";
-import {RawMessage, RawMessages} from "./types";
+import {Chat, RawMessage, RawMessages} from "./types";
 import {
     copyToClipboard,
     downloadJsonFile,
-    getYesterdaysDate,
+    getYesterdaysDate, isNewNotificationSupported,
     parseCoordinatesFromContent,
     parseDateTime,
     uploadJsonFile
@@ -169,9 +169,24 @@ function DataViewer() {
                     audio.play().catch((error) => console.error("Failed to play the sound:", error));
                 }
 
-                new Notification('New message', {
-                    body: msg.content,
-                });
+                if (window.Notification && Notification.permission == 'granted') {
+                    if (Notification.permission === 'granted') {
+                        const notification = new Notification('New message', {
+                            body: msg.content,
+                        });
+
+                        notification.onclick = () => {
+                            window.focus();
+                            console.log('Notification clicked!');
+                        };
+                    } else {
+                        console.warn('Notifications are not granted. Request permission first.');
+                    }
+                } else if (isNewNotificationSupported()) {
+                    new Notification('New message', {
+                        body: msg.content,
+                    });
+                }
             }
             messageRef.current = null;
         }
@@ -230,7 +245,7 @@ function DataViewer() {
         fetch(`http://${host}/chats`)
             .then(response => response.json())
             .then(data => {
-                const result = data.reduce((acc: any, chat: any) => {
+                const result = data.reduce((acc: Record<string, string>, chat: Chat) => {
                     acc[chat.ID] = chat.Alias;
                     return acc;
                 }, {});

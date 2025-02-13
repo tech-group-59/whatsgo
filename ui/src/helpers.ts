@@ -1,6 +1,6 @@
 import moment from "moment";
 
-import { RawMessage } from "./types.ts";
+import {RawMessage} from "./types.ts";
 
 export const parseDateTime = (message: RawMessage): Date | null => {
     const input = message.content;
@@ -57,7 +57,7 @@ export const parseCoordinatesFromContent = (content: string): [number, number] |
 }
 
 export const downloadJsonFile = (json: string, filename: string) => {
-    const blob = new Blob([json], { type: 'application/json' });
+    const blob = new Blob([json], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -107,4 +107,19 @@ export const copyToClipboard = async (content: string) => {
     } else {
         await navigator.clipboard.writeText(content);
     }
+}
+
+export const isNewNotificationSupported = () => {
+    if (!window.Notification || !Notification.requestPermission)
+        return false;
+    if (Notification.permission == 'granted')
+        throw new Error('You must only call this *before* calling Notification.requestPermission(), otherwise this feature detect would bug the user with an actual notification!');
+    try {
+        new Notification('');
+    } catch (e) {
+        if ((e as Error).name == 'TypeError'){
+            return false;
+        }
+    }
+    return true;
 }
